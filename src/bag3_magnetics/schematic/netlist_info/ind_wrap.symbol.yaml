@@ -1,0 +1,193 @@
+lib_name: bag3_magnetics
+cell_name: ind_wrap
+view_name: symbol
+bbox:
+  - 0
+  - -4
+  - 238
+  - 220
+terminals:
+  P1:
+    obj:
+      - 0
+      - layer: 229
+        purpose: 4294967295
+        net: ""
+        bbox:
+          - 96
+          - -4
+          - 104
+          - 4
+    stype: 0
+    ttype: 2
+  P2:
+    obj:
+      - 0
+      - layer: 229
+        purpose: 4294967295
+        net: ""
+        bbox:
+          - 116
+          - -4
+          - 124
+          - 4
+    stype: 0
+    ttype: 2
+shapes:
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 90
+        - 6
+      alignment: 7
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: P1
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 130
+        - 6
+      alignment: 7
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: P2
+  -
+    - 0
+    - layer: 236
+      purpose: 4294967295
+      net: ""
+      bbox:
+        - 0
+        - 0
+        - 220
+        - 220
+  -
+    - 8
+    - layer: 236
+      purpose: 237
+      net: ""
+      origin:
+        - 110
+        - 210
+      alignment: 1
+      orient: R0
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: "[@instanceName]"
+      evaluator: cdsNLPEvalText
+  -
+    - 8
+    - layer: 231
+      purpose: 237
+      net: ""
+      origin:
+        - 60
+        - 195
+      alignment: 4
+      orient: R0
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: "[@partName]"
+      evaluator: cdsNLPEvalText
+  -
+    - 0
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      bbox:
+        - 20
+        - 20
+        - 200
+        - 200
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 100
+          - 0
+        -
+          - 100
+          - 40
+        -
+          - 80
+          - 40
+        -
+          - 40
+          - 80
+        -
+          - 40
+          - 140
+        -
+          - 80
+          - 180
+        -
+          - 140
+          - 180
+        -
+          - 180
+          - 140
+        -
+          - 180
+          - 80
+        -
+          - 140
+          - 40
+        -
+          - 120
+          - 40
+        -
+          - 120
+          - 0
+instances:
+  {}
+props:
+  interfaceLastChanged:
+    - 4
+    - time_val: 1606796604
+  partName:
+    - 3
+    - ind_wrap
+  pin#:
+    - 0
+    - 2
+  portOrder:
+    - 5
+    - name: ILList
+      bin_val: ("P1" "P2")
+  vendorName:
+    - 3
+    - ""
+app_defs:
+  _dbLastSavedCounter:
+    - 0
+    - 104
+  _dbvCvTimeStamp:
+    - 0
+    - 104
+  cdbRevision:
+    - 0
+    - 227612

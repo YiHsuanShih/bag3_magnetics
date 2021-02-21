@@ -1,0 +1,280 @@
+lib_name: bag3_magnetics
+cell_name: ind_wrap
+view_name: schematic
+bbox:
+  - -381
+  - -10
+  - 194
+  - 180
+terminals:
+  P1:
+    obj:
+      - 1
+      - inst:
+          lib_name: basic
+          cell_name: iopin
+          view_name: symbolr
+          xform:
+            - -320
+            - 170
+            - R0
+          bbox:
+            - -381
+            - 144
+            - -310
+            - 180
+          connections:
+            {}
+          params:
+            {}
+          is_primitive: true
+        attr:
+          layer: 229
+          purpose: 237
+          net: ""
+          origin:
+            - -345
+            - 170
+          alignment: 7
+          orient: R0
+          font: 5
+          height: 10
+          overbar: false
+          visible: true
+          drafting: true
+          attr_type: 0
+          format: 1
+    stype: 0
+    ttype: 2
+  P2:
+    obj:
+      - 1
+      - inst:
+          lib_name: basic
+          cell_name: iopin
+          view_name: symbolr
+          xform:
+            - -320
+            - 120
+            - R0
+          bbox:
+            - -381
+            - 94
+            - -310
+            - 130
+          connections:
+            {}
+          params:
+            {}
+          is_primitive: true
+        attr:
+          layer: 229
+          purpose: 237
+          net: ""
+          origin:
+            - -345
+            - 120
+          alignment: 7
+          orient: R0
+          font: 5
+          height: 10
+          overbar: false
+          visible: true
+          drafting: true
+          attr_type: 0
+          format: 1
+    stype: 0
+    ttype: 2
+shapes:
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: ind
+      points:
+        -
+          - -110
+          - -10
+        -
+          - -110
+          - 30
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: P1
+      points:
+        -
+          - -110
+          - 90
+        -
+          - -110
+          - 130
+  -
+    - 7
+    - layer: 228
+      purpose: 237
+      net: P1
+      origin:
+        - -117
+        - 94
+      alignment: 2
+      orient: R90
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: P1
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: ind
+      points:
+        -
+          - 100
+          - -10
+        -
+          - 100
+          - 30
+  -
+    - 7
+    - layer: 228
+      purpose: 237
+      net: ind
+      origin:
+        - 0
+        - -3
+      alignment: 5
+      orient: R0
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: ind
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: P2
+      points:
+        -
+          - 100
+          - 90
+        -
+          - 100
+          - 130
+  -
+    - 7
+    - layer: 228
+      purpose: 237
+      net: P2
+      origin:
+        - 93
+        - 94
+      alignment: 2
+      orient: R90
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: P2
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: ind
+      points:
+        -
+          - -110
+          - -10
+        -
+          - 100
+          - -10
+instances:
+  XRM:
+    lib_name: BAG_prim
+    cell_name: res_metal_8
+    view_name: symbol
+    xform:
+      - 60
+      - 100
+      - R0
+    bbox:
+      - -32
+      - 26
+      - 194
+      - 100
+    connections:
+      MINUS: ind
+      PLUS: P2
+    params:
+      l:
+        - 3
+        - 1u
+      w:
+        - 3
+        - 44n
+    is_primitive: true
+  XRP:
+    lib_name: BAG_prim
+    cell_name: res_metal_8
+    view_name: symbol
+    xform:
+      - -150
+      - 100
+      - R0
+    bbox:
+      - -242
+      - 26
+      - -16
+      - 100
+    connections:
+      MINUS: ind
+      PLUS: P1
+    params:
+      l:
+        - 3
+        - 1u
+      w:
+        - 3
+        - 44n
+    is_primitive: true
+props:
+  connectivityLastUpdated:
+    - 0
+    - 367
+  instance#:
+    - 0
+    - 2
+  lastSchematicExtraction:
+    - 4
+    - time_val: 1606804301
+  net#:
+    - 0
+    - 4
+  pin#:
+    - 0
+    - 2
+  schGeometryLastUpdated:
+    - 0
+    - 367
+  schGeometryVersion:
+    - 3
+    - sch.ds.gm.1.4
+  schXtrVersion:
+    - 3
+    - sch.10.0
+app_defs:
+  _dbLastSavedCounter:
+    - 0
+    - 367
+  _dbvCvTimeStamp:
+    - 0
+    - 367
+  cdbRevision:
+    - 0
+    - 227612
