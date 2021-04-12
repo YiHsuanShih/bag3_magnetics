@@ -19,10 +19,20 @@ class IndCore(IndTemplate):
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
         IndTemplate.__init__(self, temp_db, params, **kwargs)
         self._lead_coord = None
+        self._center_tap_coord = None
+        self._tot_dim = 0
 
     @property
     def lead_coord(self) -> List[PointType]:
         return self._lead_coord
+
+    @property
+    def center_tap_coord(self) -> PointType:
+        return self._center_tap_coord
+
+    @property
+    def tot_dim(self) -> int:
+        return self._tot_dim
 
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
@@ -63,12 +73,8 @@ class IndCore(IndTemplate):
             # dum_pood='with poly/od dummy or not',
             min_width='minimum width because of CV via',
             min_spacing='minmum spacing between turns',
-            # res1_l='length of metal resistor connecting to P1',
-            # res2_l='length of metal resistor connecting to P2',
-            # res3_l='length of metal resistor connecting to P3',
             # pin_len='pin length',
             # res_space='metal resistor space to pin',
-            # tapped='True to have tap lead',
             # debug_ring='True to debug ring',
         )
 
@@ -104,12 +110,8 @@ class IndCore(IndTemplate):
         # dum_pood: int = self.params['dum_pood']
         min_width: int = self.params['min_width']
         min_spacing: int = self.params['min_spacing']
-        # res1_l: int = self.params['res1_l']
-        # res2_l: int = self.params['res2_l']
-        # res3_l: int = self.params['res3_l']
         # pin_len: int = self.params['pin_len']
         # res_space: int = self.params['res_space']
-        # tapped: bool = self.params['tapped']
         # debug_ring: bool = self.params['debug_ring']
 
         # inputs
@@ -118,9 +120,6 @@ class IndCore(IndTemplate):
         # get layer
         ind_layid = layid
         bdg_layid = layid - 1
-
-        # get step phase and initial phase
-        step_phase = 2 * np.pi / n_side
 
         # get opening on tracks
         track_op = self.grid.dim_to_num_tracks(layid, (opening + width) // 2, round_mode=RoundMode.GREATER_EQ)
@@ -140,12 +139,15 @@ class IndCore(IndTemplate):
         top_coord = []
         bot_coord = []
         via_coord = []
+        center_tap_coord = None
         for turn in range(n_turn):
-            lead, top, bot, via = self._draw_ind_turn(n_turn, radius, n_side, width, spacing, opening, ind_layid, 
-                                                      bdg_layid, via_width, turn)
+            lead, top, bot, via, center_tap = self._draw_ind_turn(n_turn, radius, n_side, width, spacing, opening,
+                                                                  ind_layid, bdg_layid, via_width, turn)
             # get to coord list for bridges
             if turn == 0:
                 lead_coord = lead
+            if turn == n_turn - 1:
+                center_tap_coord = center_tap
             # if top is not None:
             top_coord.append(top)
             # if bot is not None:
@@ -189,7 +191,15 @@ class IndCore(IndTemplate):
         # put dummy filling, guard ring and lead/tap in wrapper level
 
         # set array_box
-        tot_dim = 2 * round_up(radius * np.cos(np.pi / n_side))
-        self.set_size_from_bound_box(ind_layid, BBox(0, 0, tot_dim, tot_dim), round_up=True)
+        tot_dim = 2 * round_up(radius * np.cos(np.pi / n_side)) + width
+        tot_bbox = BBox(0, 0, tot_dim, tot_dim)
+        self.set_size_from_bound_box(ind_layid, tot_bbox, round_up=True)
+
+        # add inductor ID layer
+        id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
+        self.add_rect(id_lp, tot_bbox)
+
         # set properties
         self._lead_coord = lead_coord
+        self._center_tap_coord = center_tap_coord
+        self._tot_dim = tot_dim

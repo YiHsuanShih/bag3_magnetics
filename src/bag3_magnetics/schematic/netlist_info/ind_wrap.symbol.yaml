@@ -4,8 +4,8 @@ view_name: symbol
 bbox:
   - 0
   - -4
-  - 238
-  - 220
+  - 258
+  - 244
 terminals:
   P1:
     obj:
@@ -27,13 +27,38 @@ terminals:
         purpose: 4294967295
         net: ""
         bbox:
-          - 116
+          - 136
           - -4
-          - 124
+          - 144
           - 4
     stype: 0
     ttype: 2
+  PC:
+    obj:
+      - 0
+      - layer: 229
+        purpose: 4294967295
+        net: ""
+        bbox:
+          - 116
+          - 236
+          - 124
+          - 244
+    stype: 0
+    ttype: 2
 shapes:
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 120
+          - 200
+        -
+          - 120
+          - 240
   -
     - 7
     - layer: 229
@@ -56,7 +81,7 @@ shapes:
       purpose: 237
       net: ""
       origin:
-        - 130
+        - 150
         - 6
       alignment: 7
       orient: R270
@@ -74,16 +99,16 @@ shapes:
       bbox:
         - 0
         - 0
-        - 220
-        - 220
+        - 240
+        - 240
   -
     - 8
     - layer: 236
       purpose: 237
       net: ""
       origin:
-        - 110
-        - 210
+        - 130
+        - 230
       alignment: 1
       orient: R0
       font: 5
@@ -99,8 +124,8 @@ shapes:
       purpose: 237
       net: ""
       origin:
-        - 60
-        - 195
+        - 50
+        - 215
       alignment: 4
       orient: R0
       font: 5
@@ -118,8 +143,8 @@ shapes:
       bbox:
         - 20
         - 20
-        - 200
-        - 200
+        - 220
+        - 220
   -
     - 5
     - layer: 231
@@ -140,54 +165,70 @@ shapes:
           - 80
         -
           - 40
-          - 140
+          - 160
         -
           - 80
-          - 180
+          - 200
         -
-          - 140
-          - 180
+          - 160
+          - 200
         -
-          - 180
-          - 140
+          - 200
+          - 160
         -
-          - 180
+          - 200
           - 80
+        -
+          - 160
+          - 40
         -
           - 140
           - 40
         -
-          - 120
-          - 40
-        -
-          - 120
+          - 140
           - 0
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 110
+        - 216
+      alignment: 7
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: PC
 instances:
   {}
 props:
   interfaceLastChanged:
     - 4
-    - time_val: 1606796604
+    - time_val: 1615777868
   partName:
     - 3
     - ind_wrap
   pin#:
     - 0
-    - 2
+    - 3
   portOrder:
     - 5
     - name: ILList
-      bin_val: ("P1" "P2")
+      bin_val: ("P1" "P2" "PC")
   vendorName:
     - 3
     - ""
 app_defs:
   _dbLastSavedCounter:
     - 0
-    - 104
+    - 136
   _dbvCvTimeStamp:
     - 0
-    - 104
+    - 136
   cdbRevision:
     - 0
     - 227612

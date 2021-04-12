@@ -3,7 +3,7 @@ cell_name: ind_wrap
 view_name: schematic
 bbox:
   - -381
-  - -10
+  - -140
   - 194
   - 180
 terminals:
@@ -85,6 +85,45 @@ terminals:
           format: 1
     stype: 0
     ttype: 2
+  PC:
+    obj:
+      - 1
+      - inst:
+          lib_name: basic
+          cell_name: iopin
+          view_name: symbolr
+          xform:
+            - -320
+            - 60
+            - R0
+          bbox:
+            - -381
+            - 34
+            - -310
+            - 70
+          connections:
+            {}
+          params:
+            {}
+          is_primitive: true
+        attr:
+          layer: 229
+          purpose: 237
+          net: ""
+          origin:
+            - -345
+            - 60
+          alignment: 7
+          orient: R0
+          font: 5
+          height: 10
+          overbar: false
+          visible: true
+          drafting: true
+          attr_type: 0
+          format: 1
+    stype: 0
+    ttype: 2
 shapes:
   -
     - 5
@@ -98,6 +137,18 @@ shapes:
         -
           - -110
           - 30
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: PC
+      points:
+        -
+          - -10
+          - -140
+        -
+          - -10
+          - -100
   -
     - 5
     - layer: 228
@@ -192,9 +243,83 @@ shapes:
           - -110
           - -10
         -
+          - -10
+          - -10
+  -
+    - 7
+    - layer: 228
+      purpose: 237
+      net: PC
+      origin:
+        - -17
+        - -104
+      alignment: 8
+      orient: R90
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: PC
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: ind
+      points:
+        -
+          - -10
+          - -10
+        -
           - 100
           - -10
+  -
+    - 5
+    - layer: 228
+      purpose: 4294967295
+      net: ind
+      points:
+        -
+          - -10
+          - -40
+        -
+          - -10
+          - -10
+  -
+    - 4
+    - layer: 228
+      purpose: 4294967295
+      net: ""
+      bbox:
+        - -15
+        - -15
+        - -5
+        - -5
 instances:
+  XRC:
+    lib_name: BAG_prim
+    cell_name: res_metal_8
+    view_name: symbol
+    xform:
+      - -50
+      - -30
+      - R0
+    bbox:
+      - -142
+      - -104
+      - 84
+      - -30
+    connections:
+      MINUS: PC
+      PLUS: ind
+    params:
+      l:
+        - 3
+        - 1u
+      w:
+        - 3
+        - 44n
+    is_primitive: true
   XRM:
     lib_name: BAG_prim
     cell_name: res_metal_8
@@ -246,22 +371,22 @@ instances:
 props:
   connectivityLastUpdated:
     - 0
-    - 367
+    - 687
   instance#:
     - 0
-    - 2
+    - 3
   lastSchematicExtraction:
     - 4
-    - time_val: 1606804301
+    - time_val: 1615777947
   net#:
     - 0
-    - 4
+    - 2
   pin#:
     - 0
-    - 2
+    - 3
   schGeometryLastUpdated:
     - 0
-    - 367
+    - 687
   schGeometryVersion:
     - 3
     - sch.ds.gm.1.4
@@ -271,10 +396,10 @@ props:
 app_defs:
   _dbLastSavedCounter:
     - 0
-    - 367
+    - 687
   _dbvCvTimeStamp:
     - 0
-    - 367
+    - 687
   cdbRevision:
     - 0
     - 227612

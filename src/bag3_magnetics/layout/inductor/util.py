@@ -83,7 +83,7 @@ class IndTemplate(TemplateBase):
         else:   # Mode 6: other turns on odd index
             mode = 6
 
-        path_coord, lead_coord, tail_coord, top_coord, bot_coord, via_coord = \
+        path_coord, lead_coord, tail_coord, top_coord, bot_coord, via_coord, center_tap_coord = \
             get_octpath_coord(radius, turn, n_side, width, spacing, opening, 0, via_width, mode=mode)
 
         # draw paths in this turn
@@ -93,8 +93,8 @@ class IndTemplate(TemplateBase):
         if tail_coord:
             self.draw_path(bdg_layid, width, tail_coord, end_style=PathStyle.round, join_style=PathStyle.round)
 
-        # return lead, top bridge, bottom bridge
-        return lead_coord, top_coord, bot_coord, via_coord
+        # return lead, top bridge, bottom bridge, via, center_tap
+        return lead_coord, top_coord, bot_coord, via_coord, center_tap_coord
 
     def _draw_ind_ring(self, halflen: int, width: int, spacing: int, turn: int, n_conn: int, conn_width: int,
                        ind_width: int, opening: int, ind_layid: int, layer_list: List[int], pin_len: int,
@@ -225,8 +225,8 @@ class IndTemplate(TemplateBase):
                 mode = 0
 
             # put them in an array
-            path_coord, _, _, _, _, _ = get_octpath_coord(radius, 0, n_side, width, 0, opening + ind_width * 4, 0, 0,
-                                                          mode=mode)
+            path_coord, _, _, _, _, _, _ = get_octpath_coord(radius, 0, n_side, width, 0, opening + ind_width * 4, 0, 0,
+                                                             mode=mode)
             path_arr.append(path_coord)
 
         # draw path
@@ -234,7 +234,7 @@ class IndTemplate(TemplateBase):
             self.draw_path(lay_id, width, path_coord, end_style=PathStyle.extend, join_style=PathStyle.extend)
 
         # get length of this guard ring
-        length = path_arr[-1][0][0][0] * 2
+        length = path_arr[-1][0][0][0]
 
         # draw via on different layers
         for path_coord, lay_id in zip(path_arr, layer_list):
@@ -533,77 +533,36 @@ class IndTemplate(TemplateBase):
     #         self.draw_path(layid, width, [(x0, -y0), (length, -y0)], end_style=PathStyle.extend)
     #         self.draw_path(layid, width, [(x0, -y0), (x0, -length)], end_style=PathStyle.extend)
 
-    def _draw_tap(self, radius: int, width: int, spacing: int, n_side: int, n_turn: int, tap_len: int, ind_layid: int,
-                  pin_len: int, res3_l: int, res_space: int):
+    def _draw_center_tap(self, width: int, n_turn: int, tap_len: int, ind_layid: int, pin_len: int, res3_l: int,
+                         res_space: int, center_tap_coord: PointType):
 
-        # get step phase and initial phase
-        step_phase = 2 * np.pi / n_side
-        init_phase = -np.pi / 2 + step_phase / 2
+        tap_ext = width // 2 + res_space + res3_l
 
-        # get tap coordinates
-        yn_0 = round_up(radius * np.sin(init_phase))
-        yn_1 = round_up((radius - (width + spacing) * (n_turn - 1) / np.sin(-init_phase)) * np.sin(init_phase))
+        if n_turn % 2:
+            tap_bbox = BBox(center_tap_coord[0] - width // 2, center_tap_coord[1],
+                            center_tap_coord[0] + width // 2, center_tap_coord[1] + tap_ext + tap_len)
+            lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
+            self.add_rect(lp, tap_bbox)
 
-        # consider odd/even turns
-        if n_turn % 2 == 0:
-            tap_coord = ((0, yn_1), (0, yn_0 - tap_len))
-            via_coord = (0, yn_1)
-            tap_lower = tap_coord[1][1] - width // 2
-            tap_upper = tap_coord[0][1] + width // 2
-            tap_pinup = tap_lower + pin_len
-            tap_pinlw = tap_lower
+            # add metal res
+            tap_res_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len - res_space - res3_l, tap_bbox.xh,
+                                  tap_bbox.yh - tap_len - res_space)
+            self.add_res_metal(ind_layid, tap_res_bbox)
 
-        else:
-            tap_coord = ((0, - yn_1), (0, - yn_0 + tap_len))
-            via_coord = (0, - yn_1)
-            tap_lower = tap_coord[0][1] - width // 2
-            tap_upper = tap_coord[1][1] + width // 2
-            tap_pinup = tap_upper
-            tap_pinlw = tap_upper - pin_len
-
-        # get layer
-        if n_turn % 2 == 0:
-            layid_use = [ind_layid]
-            via_dp = 0
-            tap_layid = ind_layid
-        else:
-            layid_use = [ind_layid, ind_layid + 1]
-            via_dp = 1
-            tap_layid = ind_layid + 1
-
-        # draw tap path
-        tap = []
-        # get inductor layer track width
-        tap_tr = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.GREATER_EQ)
-        tap_idx = self.grid.coord_to_track(tap_layid, 0, RoundMode.NEAREST)
-        # get width for resolution
-        tap_width = self.grid.track_to_coord(ind_layid, tap_tr)
-
-        if tap_layid == ind_layid:
+            # add (ind_layid - 1) wire
+            tap_idx = self.grid.coord_to_track(ind_layid - 1, center_tap_coord[0], RoundMode.NEAREST)
+            wire_lower = tap_bbox.yh - tap_len
             # get track width
-            self.add_wires(tap_layid, tap_idx, tap_lower, tap_upper, width=tap_tr.dbl_value)
-            # to add pin
-            tap.append(self.add_wires(tap_layid, tap_idx, tap_pinlw, tap_pinup, width=tap_tr.dbl_value))
+            track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.GREATER_EQ)
+            tap = self.add_wires(ind_layid - 1, tap_idx, lower=wire_lower, upper=wire_lower + pin_len,
+                                 width=track.dbl_value)
+
+            # add via to (ind_layid - 1) wire
+            pin_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len, tap_bbox.xh, tap_bbox.yh)
+            self.connect_bbox_to_track_wires(Direction.UPPER, lp, pin_bbox, tap)
+            return tap
         else:
-            self.draw_path(tap_layid, tap_width, [(0, tap_lower), (0, tap_upper)], end_style=PathStyle.truncate)
-            self.draw_via((0, tap_upper - tap_width // 2), tap_width, tap_width, tap_layid, ind_layid)
-            self.add_wires(ind_layid, tap_idx, tap_upper - tap_width, tap_upper, width=tap_tr.dbl_value)
-            # to add pin
-            tap.append(self.add_wires(ind_layid, tap_idx, tap_pinlw, tap_pinup, width=tap_tr.dbl_value))
-
-        # draw via
-        for j in range(via_dp):
-            self.draw_via(via_coord, tap_width, width, layid_use[j], layid_use[j + 1])
-
-        # draw res
-        tap_bbox = tap[0].bound_box
-        if tap_bbox.yl < 0:
-            tap_res_bbox = BBox(tap_bbox.xl, tap_bbox.yh + res_space, tap_bbox.xh, tap_bbox.yh + res3_l + res_space)
-        else:
-            tap_res_bbox = BBox(tap_bbox.xl, tap_bbox.yl - res3_l - res_space, tap_bbox.xh, tap_bbox.yh - res_space)
-        self.add_res_metal(tap_layid, tap_res_bbox)
-
-        return tap_width, tap, tap_res_bbox.w, tap_layid  # return tap width
+            raise NotImplementedError('Multiple turns not supported yet.')
 
     def _draw_lead(self, ind_layid: int, width: int, lead_len: int, lead_coord: List[PointType], pin_len: int,
                    res1_l: int, res2_l: int, res_space: int, ring_len: int, ring_width: int, orient: Orientation,
@@ -904,7 +863,7 @@ class IndTemplate(TemplateBase):
 def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: int, bot_open: int, top_open: int,
                       via_width: int, mode: int):
     """
-    Get coordinates for all the paths, including lead, tail, via, top and bottom
+    Get coordinates for all the paths, including lead, tail, via, top, bottom and center tap
 
     """
     # Mode 0: a turn w/o any break
@@ -922,7 +881,7 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
     step_phase = 2 * np.pi / n_side
     init_phase = -np.pi / 2 + step_phase / 2
     turn_rad = round_up(radius - turn * (width + spacing) / np.sin(-init_phase))
-    offset = round_up(radius * np.cos(np.pi / n_side))
+    offset = round_up(radius * np.cos(np.pi / n_side)) + width // 2
 
     # get coordinate
     coord = []
@@ -964,7 +923,7 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
     bot_r_coord1 = (bot_bdg1 // 2 + width + (via_width - width) // 2 + offset, coord[0][1])
     bot_l_coord1 = ((-bot_bdg1 // 2) - width - (via_width - width) // 2 + offset, coord[0][1])
 
-    # Step 2: lead, coordinate
+    # Step 2: lead coordinate
     # lead coordinate
     lead_coord0 = [(-bot_open // 2 + offset, coord[0][1]), (bot_open // 2 + offset, coord[0][1])]
 
@@ -980,6 +939,7 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
     lead_coord = None
     top_coord = None
     bot_coord = None
+    center_tap_coord = None
     if mode == 0:   # Mode 0: a turn w/o any break
         for i in range(n_side):
             if i == n_side - 1:
@@ -990,6 +950,7 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
     elif mode == 1:  # Mode 1: outer turn with only lead break
         # top/bot bridge coordinate
         lead_coord = lead_coord0
+        center_tap_coord = (offset, coord[n_side // 2][1])
         for i in range(n_side):
             if i == n_side - 1:
                 path_coord.append([coord[n_side-1], lead_coord0[0]])
@@ -1135,7 +1096,7 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
     else:
         raise ValueError("Other modes are not done yet.")
 
-    return path_coord, lead_coord, tail_coord, top_coord, bot_coord, via_coord
+    return path_coord, lead_coord, tail_coord, top_coord, bot_coord, via_coord, center_tap_coord
 
 
 def round_up(val_f: float) -> int:
