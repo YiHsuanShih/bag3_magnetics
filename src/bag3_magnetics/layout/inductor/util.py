@@ -93,8 +93,8 @@ class IndTemplate(TemplateBase):
         if tail_coord:
             self.draw_path(bdg_layid, width, tail_coord, end_style=PathStyle.round, join_style=PathStyle.round)
 
-        # return lead, top bridge, bottom bridge, via, center_tap
-        return lead_coord, top_coord, bot_coord, via_coord, center_tap_coord
+        # return path, lead, top bridge, bottom bridge, via, center_tap
+        return path_coord, lead_coord, top_coord, bot_coord, via_coord, center_tap_coord
 
     def _draw_ind_ring(self, halflen: int, width: int, spacing: int, turn: int, n_conn: int, conn_width: int,
                        ind_width: int, opening: int, ind_layid: int, layer_list: List[int], pin_len: int,
@@ -858,6 +858,80 @@ class IndTemplate(TemplateBase):
         bbox = BBox(x0, y0, x1, y1)
         lp = self.grid.tech_info.get_lay_purp_list(layid)[0]
         self.add_rect(lp, bbox)
+
+    def _draw_fill(self, n_side: int, path_coord: List[List[List[PointType]]], width: int, ind_layid: int,
+                   fill_specs: Mapping[str, Any]) -> None:
+        #       4   3
+        #   5           2
+        #   6           1
+        #       7   0
+        fill_w: int = fill_specs['fill_w']
+        fill_sp: int = fill_specs['fill_sp']
+        lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
+        if n_side == 8:
+            # Step 1: draw inside ring
+            path_in = path_coord[-1]
+            coord = [path[0] for path in path_in]
+
+            bbox_in = BBox(coord[5][0] + width // 2 + fill_sp, coord[7][1] + width // 2 + fill_sp,
+                           coord[1][0] - width // 2 - fill_sp, coord[3][1] - width // 2 - fill_sp)
+            bbox_in2 = BBox(coord[7][0] + width // 2, coord[1][1] + width // 2,
+                            coord[3][0] - width // 2, coord[5][1] - width // 2)
+            tot_num = (bbox_in.w + fill_sp) // (fill_w + fill_sp)
+            tot_len = tot_num * (fill_w + fill_sp) - fill_sp
+            xl = bbox_in.xl + (bbox_in.w - tot_len) // 2
+            yl = bbox_in.yl + (bbox_in.w - tot_len) // 2
+            for idx in range(tot_num):
+                for jdx in range(tot_num):
+                    _xl = xl + idx * (fill_w + fill_sp)
+                    _yl = yl + jdx * (fill_w + fill_sp)
+                    if _xl + _yl < bbox_in.xl + bbox_in2.yl:
+                        # lower left
+                        continue
+                    elif _yl + fill_w - _xl > bbox_in2.yh - bbox_in.xl:
+                        # upper left
+                        continue
+                    elif _yl - _xl - fill_w < bbox_in2.yl - bbox_in.xh:
+                        # lower right
+                        continue
+                    elif _xl + _yl + 2 * fill_w > bbox_in.xh + bbox_in2.yh:
+                        # upper right
+                        continue
+                    self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+
+            # Step 2: draw outside ring
+            path_out = path_coord[0]
+            coord = [path[0] for path in path_out]
+
+            bbox_out2 = BBox(coord[7][0] - width // 2 - fill_sp, coord[1][1] - width // 2 - fill_sp,
+                             coord[3][0] + width // 2 + fill_sp, coord[5][1] + width // 2 + fill_sp)
+            bbox_out = BBox(coord[5][0] - width // 2, coord[7][1] - width // 2,
+                            coord[1][0] + width // 2, coord[3][1] + width // 2)
+            tot_num = (bbox_out.w + fill_sp) // (fill_w + fill_sp)
+            tot_len = tot_num * (fill_w + fill_sp) - fill_sp
+            xl = bbox_out.xl + (bbox_out.w - tot_len) // 2
+            yl = bbox_out.yl + (bbox_out.w - tot_len) // 2
+            for idx in range(tot_num):
+                for jdx in range(tot_num):
+                    _xl = xl + idx * (fill_w + fill_sp)
+                    _yl = yl + jdx * (fill_w + fill_sp)
+                    if _xl + _yl + 2 * fill_w < bbox_out.xl + bbox_out2.yl:
+                        # lower left
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    elif _yl - _xl - fill_w > bbox_out2.yh - bbox_out.xl:
+                        # upper left
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    elif _yl + fill_w - _xl < bbox_out2.yl - bbox_out.xh:
+                        # lower right
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    # TODO
+                    # elif _xl + _yl > bbox_out.xh + bbox_out2.yh:  # correct version
+                    elif _xl + _yl > bbox_out.xh + bbox_out2.yh + 11 * fill_sp:  # hacked version
+                        # upper right
+                        print(idx, jdx)
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+        else:
+            raise NotImplementedError(f'n_side={n_side} not supported yet.')
 
 
 def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: int, bot_open: int, top_open: int,

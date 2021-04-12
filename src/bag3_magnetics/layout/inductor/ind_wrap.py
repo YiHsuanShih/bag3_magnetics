@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import numpy as np
 from typing import List, Mapping, Any, Union, Optional, Type
 
 from bag.layout.template import TemplateDB
@@ -10,7 +9,7 @@ from bag.design.module import Module
 from pybag.enum import Orientation
 from pybag.core import Transform
 
-from .util import IndTemplate, round_up
+from .util import IndTemplate
 from .ind_core import IndCore
 from ...schematic.ind_wrap import bag3_magnetics__ind_wrap
 
@@ -45,6 +44,9 @@ class IndWrap(IndTemplate):
             width='inductor width',
             opening='inductor opening',
             via_width='inductor via width at bridges',
+            min_width='minimum width because of CV via',
+            min_spacing='minimum spacing between turns',
+
             lead_len='inductor terminal length',
 
             w_ring='True to have guard ring, False by default',
@@ -75,15 +77,18 @@ class IndWrap(IndTemplate):
             # dum_lowlay='with low layer dummy or not',
             # dum_pood='with poly/od dummy or not',
 
-            min_width='minimum width because of CV via',
-            min_spacing='minimum spacing between turns',
             res1_l='length of metal resistor connecting to P1',
             res2_l='length of metal resistor connecting to P2',
             pin_len='pin length',
             res_space='metal resistor space to pin',
             # debug_ring='True to debug ring',
             orient='orientation of inductor',
-            short_terms='True to make shorted terminals'
+            short_terms='True to make shorted terminals',
+
+            w_fill='True to have metal fill',
+            fill_specs='Specs for metal fill',
+            # fill_w='metal width for fill',
+            # fill_sp='metal spacing for fill',
         )
 
     @classmethod
@@ -96,6 +101,8 @@ class IndWrap(IndTemplate):
             ring_specs=None,
             center_tap=False,
             center_tap_specs=None,
+            w_fill=False,
+            fill_specs=None,
         )
 
     def draw_layout(self):
@@ -106,6 +113,9 @@ class IndWrap(IndTemplate):
         width: int = self.params['width']
         opening: int = self.params['opening']
         via_width: int = self.params['via_width']
+        min_width: int = self.params['min_width']
+        min_spacing: int = self.params['min_spacing']
+
         lead_len: int = self.params['lead_len']
 
         w_ring: bool = self.params['w_ring']
@@ -121,8 +131,6 @@ class IndWrap(IndTemplate):
         # dum_lowlay: int = self.params['dum_lowlay']
         # dum_pood: int = self.params['dum_pood']
 
-        min_width: int = self.params['min_width']
-        min_spacing: int = self.params['min_spacing']
         res1_l: int = self.params['res1_l']
         res2_l: int = self.params['res2_l']
         pin_len: int = self.params['pin_len']
@@ -133,12 +141,15 @@ class IndWrap(IndTemplate):
         if isinstance(orient, str):
             orient = Orientation[orient]
 
+        w_fill: bool = self.params['w_fill']
+        fill_specs: Optional[Mapping[str, Any]] = self.params['fill_specs']
+
         # current generator limitations
         if w_ring and center_tap:
             raise ValueError('Generator does not support both w_ring and center_tap being True simultaneously.')
 
         # hard coded number of side
-        n_side = 8
+        # n_side = 8
 
         ind_params = dict(
             n_turn=n_turn,
@@ -150,6 +161,8 @@ class IndWrap(IndTemplate):
             via_width=via_width,
             min_width=min_width,
             min_spacing=min_spacing,
+            w_fill=w_fill,
+            fill_specs=fill_specs,
         )
 
         ind_master: IndCore = self.new_template(IndCore, params=ind_params)

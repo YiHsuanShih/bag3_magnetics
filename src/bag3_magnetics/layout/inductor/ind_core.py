@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from typing import List, Mapping, Any
+from typing import List, Mapping, Any, Optional
 
 from bag.layout.template import TemplateDB
 from bag.layout.util import BBox
@@ -53,35 +53,17 @@ class IndCore(IndTemplate):
             width='inductor width',
             opening='inductor opening',
             via_width='inductor via width at bridges',
-            # lead_len='inductor terminal length',
-            # tap_len='inductor tap length',
-
-            # ring_spacing='spacing between ring and inductor',
-            # ring_width='ring width',
-            # ring_gap='gap distance between rings',
-            # ring_turn='ring turn number',
-            # ring_laylist='ring layer list',
-            # ring_conn_n='ring connection numbers',
-            # ring_conn_width='ring connection width',
-
-            # w_ring='with ring or not',
-            # w_shield='with shield or not',
-            # w_dummy='with dummy or not',
-            # dum_indlay='with inductor layer dummy or not',
-            # dum_bdglay='with inductor-1 layer dummy or not',
-            # dum_lowlay='with low layer dummy or not',
-            # dum_pood='with poly/od dummy or not',
             min_width='minimum width because of CV via',
             min_spacing='minmum spacing between turns',
-            # pin_len='pin length',
-            # res_space='metal resistor space to pin',
-            # debug_ring='True to debug ring',
+            w_fill='True to have metal fill',
+            fill_specs='Specs for metal fill',
         )
 
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
-            # debug_ring=False,
+            w_fill=False,
+            fill_specs=None,
         )
 
     def draw_layout(self):
@@ -92,27 +74,10 @@ class IndCore(IndTemplate):
         width: int = self.params['width']
         opening: int = self.params['opening']
         via_width: int = self.params['via_width']
-        # lead_len: int = self.params['lead_len']
-        # tap_len: int = self.params['tap_len']
-        # ring_spacing: int = self.params['ring_spacing']
-        # ring_width: int = self.params['ring_width']
-        # ring_gap: int = self.params['ring_gap']
-        # ring_turn: int = self.params['ring_turn']
-        # ring_laylist: List[int] = self.params['ring_laylist']
-        # ring_conn_n: List[int] = self.params['ring_conn_n']
-        # ring_conn_width: int = self.params['ring_conn_width']
-        # w_ring: bool = self.params['w_ring']
-        # w_shield: bool = self.params['w_shield']
-        # w_dummy: bool = self.params['w_dummy']
-        # dum_indlay: int = self.params['dum_indlay']
-        # dum_bdglay: int = self.params['dum_bdglay']
-        # dum_lowlay: int = self.params['dum_lowlay']
-        # dum_pood: int = self.params['dum_pood']
         min_width: int = self.params['min_width']
         min_spacing: int = self.params['min_spacing']
-        # pin_len: int = self.params['pin_len']
-        # res_space: int = self.params['res_space']
-        # debug_ring: bool = self.params['debug_ring']
+        w_fill: bool = self.params['w_fill']
+        fill_specs: Optional[Mapping[str, Any]] = self.params['fill_specs']
 
         # inputs
         n_side = 8
@@ -135,14 +100,16 @@ class IndCore(IndTemplate):
             raise ValueError('Spacing is too small')
 
         # Step 1: draw each turn of the layout
+        path_coord = []
         lead_coord = []
         top_coord = []
         bot_coord = []
         via_coord = []
         center_tap_coord = None
         for turn in range(n_turn):
-            lead, top, bot, via, center_tap = self._draw_ind_turn(n_turn, radius, n_side, width, spacing, opening,
-                                                                  ind_layid, bdg_layid, via_width, turn)
+            path, lead, top, bot, via, center_tap = self._draw_ind_turn(n_turn, radius, n_side, width, spacing, opening,
+                                                                        ind_layid, bdg_layid, via_width, turn)
+            path_coord.append(path)
             # get to coord list for bridges
             if turn == 0:
                 lead_coord = lead
@@ -188,8 +155,6 @@ class IndCore(IndTemplate):
         if via_coord:
             self.draw_via(via_coord, via_width, width, bdg_layid, ind_layid)
 
-        # put dummy filling, guard ring and lead/tap in wrapper level
-
         # set array_box
         tot_dim = 2 * round_up(radius * np.cos(np.pi / n_side)) + width
         tot_bbox = BBox(0, 0, tot_dim, tot_dim)
@@ -198,6 +163,10 @@ class IndCore(IndTemplate):
         # add inductor ID layer
         id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
         self.add_rect(id_lp, tot_bbox)
+
+        # add fill
+        if w_fill:
+            self._draw_fill(n_side, path_coord, width, ind_layid, fill_specs)
 
         # set properties
         self._lead_coord = lead_coord
