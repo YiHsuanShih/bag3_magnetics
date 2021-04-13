@@ -81,7 +81,6 @@ class IndWrap(IndTemplate):
             res2_l='length of metal resistor connecting to P2',
             pin_len='pin length',
             res_space='metal resistor space to pin',
-            # debug_ring='True to debug ring',
             orient='orientation of inductor',
             short_terms='True to make shorted terminals',
 
@@ -95,7 +94,6 @@ class IndWrap(IndTemplate):
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
             orient=Orientation.R0,
-            # debug_ring=False,
             short_terms=False,
             w_ring=False,
             ring_specs=None,
@@ -135,7 +133,6 @@ class IndWrap(IndTemplate):
         res2_l: int = self.params['res2_l']
         pin_len: int = self.params['pin_len']
         res_space: int = self.params['res_space']
-        # debug_ring: bool = self.params['debug_ring']
         # short_terms: bool = self.params['short_terms']
         orient: Union[str, Orientation] = self.params['orient']
         if isinstance(orient, str):
@@ -149,9 +146,10 @@ class IndWrap(IndTemplate):
             raise ValueError('Generator does not support both w_ring and center_tap being True simultaneously.')
 
         # hard coded number of side
-        # n_side = 8
+        n_side = 8
 
         ind_params = dict(
+            n_side=n_side,
             n_turn=n_turn,
             layid=layid,
             radius=radius,
@@ -161,8 +159,6 @@ class IndWrap(IndTemplate):
             via_width=via_width,
             min_width=min_width,
             min_spacing=min_spacing,
-            w_fill=w_fill,
-            fill_specs=fill_specs,
         )
 
         ind_master: IndCore = self.new_template(IndCore, params=ind_params)
@@ -193,21 +189,34 @@ class IndWrap(IndTemplate):
             offset = 0
             tot_dim = ind_master.tot_dim
 
-        lead_coord = ind_master.lead_coord
-        ind_lead_coord = []
-        center_tap_coord = ind_master.center_tap_coord
+        # find Transform
         if orient is Orientation.R0:
             xform = Transform(dx=offset, dy=offset)
-            for coord in lead_coord:
-                ind_lead_coord.append((coord[0] + offset, coord[1] + offset))
-            ind_center_tap_coord = (center_tap_coord[0] + offset, center_tap_coord[1] + offset)
         elif orient is Orientation.R90:
             xform = Transform(dx=tot_dim - offset, dy=offset, mode=orient)
-            for coord in lead_coord:
-                ind_lead_coord.append((coord[0] + tot_dim - offset, coord[1] + offset))
-            ind_center_tap_coord = (center_tap_coord[0] + tot_dim - offset, center_tap_coord[1] + offset)
         else:
             raise NotImplementedError(f'orient={orient} not implemented yet.')
+
+        # update coords of ind_master
+        path_coord = ind_master.path_coord
+        ind_path_coord = []
+        for turn in path_coord:
+            path_n = []
+            for path in turn:
+                coord_n = []
+                for coord in path:
+                    coord_n.append((coord[0] + xform.x, coord[1] + xform.y))
+                path_n.append(coord_n)
+            ind_path_coord.append(path_n)
+
+        lead_coord = ind_master.lead_coord
+        ind_lead_coord = []
+        for coord in lead_coord:
+            ind_lead_coord.append((coord[0] + xform.x, coord[1] + xform.y))
+
+        center_tap_coord = ind_master.center_tap_coord
+        ind_center_tap_coord = (center_tap_coord[0] + xform.x, center_tap_coord[1] + xform.y)
+
         # place inductor
         self.add_instance(ind_master, inst_name='XIND', xform=xform)
 
@@ -228,6 +237,10 @@ class IndWrap(IndTemplate):
             self.add_pin('PC', tap)
         else:
             res3_l = 0
+
+        # draw fill
+        if w_fill:
+            self._draw_fill(n_side, path_coord, width, layid, fill_specs)
 
         # set array_box
         self.set_size_from_bound_box(layid, BBox(0, 0, tot_dim, tot_dim), round_up=True)

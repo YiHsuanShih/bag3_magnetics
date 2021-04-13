@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from typing import List, Mapping, Any, Optional
+from typing import List, Mapping, Any
 
 from bag.layout.template import TemplateDB
 from bag.layout.util import BBox
@@ -18,9 +18,14 @@ class IndCore(IndTemplate):
 
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
         IndTemplate.__init__(self, temp_db, params, **kwargs)
+        self._path_coord = None
         self._lead_coord = None
         self._center_tap_coord = None
         self._tot_dim = 0
+
+    @property
+    def path_coord(self) -> List[List[List[PointType]]]:
+        return self._path_coord
 
     @property
     def lead_coord(self) -> List[PointType]:
@@ -46,6 +51,7 @@ class IndCore(IndTemplate):
             dictionary from parameter name to description.
         """
         return dict(
+            n_side='number of sides of inductor',
             n_turn='inductor turn number',
             layid='inductor layer id',
             radius='inductor outer radius',
@@ -55,18 +61,16 @@ class IndCore(IndTemplate):
             via_width='inductor via width at bridges',
             min_width='minimum width because of CV via',
             min_spacing='minmum spacing between turns',
-            w_fill='True to have metal fill',
-            fill_specs='Specs for metal fill',
         )
 
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
-            w_fill=False,
-            fill_specs=None,
+            n_side=8,
         )
 
     def draw_layout(self):
+        n_side: int = self.params['n_side']
         n_turn: int = self.params['n_turn']
         layid: int = self.params['layid']
         radius: int = self.params['radius']
@@ -76,11 +80,6 @@ class IndCore(IndTemplate):
         via_width: int = self.params['via_width']
         min_width: int = self.params['min_width']
         min_spacing: int = self.params['min_spacing']
-        w_fill: bool = self.params['w_fill']
-        fill_specs: Optional[Mapping[str, Any]] = self.params['fill_specs']
-
-        # inputs
-        n_side = 8
 
         # get layer
         ind_layid = layid
@@ -164,11 +163,8 @@ class IndCore(IndTemplate):
         id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
         self.add_rect(id_lp, tot_bbox)
 
-        # add fill
-        if w_fill:
-            self._draw_fill(n_side, path_coord, width, ind_layid, fill_specs)
-
         # set properties
+        self._path_coord = path_coord
         self._lead_coord = lead_coord
         self._center_tap_coord = center_tap_coord
         self._tot_dim = tot_dim

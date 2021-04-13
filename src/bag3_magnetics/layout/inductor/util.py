@@ -546,7 +546,7 @@ class IndTemplate(TemplateBase):
 
             # add metal res
             tap_res_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len - res_space - res3_l, tap_bbox.xh,
-                                  tap_bbox.yh - tap_len - res_space)
+                                tap_bbox.yh - tap_len - res_space)
             self.add_res_metal(ind_layid, tap_res_bbox)
 
             # add (ind_layid - 1) wire
@@ -671,8 +671,8 @@ class IndTemplate(TemplateBase):
                               lead_coord[1][1] + width // 2, term1_y_coord + tr_width // 2)
 
             lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
-            term0 = self.add_rect(lp, term0_bbox)
-            term1 = self.add_rect(lp, term1_bbox)
+            self.add_rect(lp, term0_bbox)
+            self.add_rect(lp, term1_bbox)
 
             # add metal res
             term0_res_bbox = BBox(term0_bbox.xl + res_space, term0_bbox.yl, term0_bbox.xl + res_space + res1_l,
@@ -924,11 +924,8 @@ class IndTemplate(TemplateBase):
                     elif _yl + fill_w - _xl < bbox_out2.yl - bbox_out.xh:
                         # lower right
                         self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    # TODO
-                    # elif _xl + _yl > bbox_out.xh + bbox_out2.yh:  # correct version
-                    elif _xl + _yl > bbox_out.xh + bbox_out2.yh + 11 * fill_sp:  # hacked version
+                    elif _xl + _yl > bbox_out.xh + bbox_out2.yh:
                         # upper right
-                        print(idx, jdx)
                         self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
         else:
             raise NotImplementedError(f'n_side={n_side} not supported yet.')
