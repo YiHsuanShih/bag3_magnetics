@@ -7,6 +7,8 @@ from pathlib import Path
 
 from bag.concurrent.core import SubProcessManager, batch_async_task
 
+from .inductor_cal import IndCal
+
 
 class EmSim(object):
     def __init__(self, specs: Mapping[str, Any]):
@@ -22,6 +24,8 @@ class EmSim(object):
 
         self._lib_path = self._em_base_path / self._lib_name
         self._model_path = self._lib_path / self._cell_name
+
+        self._ind_cal: IndCal = IndCal(specs)
 
     @property
     def manager(self) -> SubProcessManager:
@@ -84,14 +88,14 @@ class EmSim(object):
         show_cmd: bool = em_options['show_cmd']
 
         # mesh option
-        mesh_opts = f'-e {edge_mesh} -t {thickness} -v {via_separation} --3d=*'
+        mesh_opts = ['-e', f'{edge_mesh}', '-t', f'{thickness}', '-v', f'{via_separation}', '--3d=*']
         # freq option
-        freq_opts = f'--sweep {fmin} {fmax} --sweep-stepsize {fstep}'
+        freq_opts = ['--sweep', f'{fmin}', f'{fmax}', '--sweep-stepsize', f'{fstep}']
         # print options
         pr_num = 3 if show_log else 0
-        pr_opts = f'--verbose={pr_num}'
+        pr_opts = [f'--verbose={pr_num}']
         # print cmd options
-        cmd_opts = '--print-command-line -l 0' if show_cmd else ''
+        cmd_opts = ['--print-command-line', '-l', '0'] if show_cmd else []
 
         # get port list
         port_list: List[str] = self.params['port_list']
@@ -103,43 +107,43 @@ class EmSim(object):
         # remove repeated ports
         for port in gndlist_n:
             portlist_n.remove(port)
-        port_string = ''
+        port_string = []
         for idx, port in enumerate(portlist_n):
-            port_string += f' -p P{idx:02d}={port} -i P{idx:02d}'
+            port_string.extend(['-p', f'P{idx:02d}={port}', '-i', f'P{idx:02d}'])
         n_ports = len(portlist_n)
         for idx, port in enumerate(gndlist_n):
-            port_string += f' -p P{(idx + n_ports):02d}={port}'
+            port_string.extend(['-p', f'P{(idx + n_ports):02d}={port}'])
 
         # get s/y parameters and model
         # s parameter file
         sp_file = self._model_path / f'{self._cell_name}.s{n_ports}p'
-        sp_opts = f'--format=touchstone -s {sp_file}'
+        sp_opts = ['--format=touchstone', '-s', str(sp_file)]
         # y parameter file
         yp_file = self._model_path / f'{self._cell_name}.y{n_ports}p'
-        yp_opts = f'--format=touchstone -y {yp_file}'
+        yp_opts = ['--format=touchstone', '-y', str(yp_file)]
         # y matlab file
         ym_file = self._model_path / f'{self._cell_name}.y'
-        ym_opts = f'--format=matlab -y {ym_file}'
+        ym_opts = ['--format=matlab', '-y', str(ym_file)]
         # pz model
         state_file = self._model_path / f'{self._cell_name}.pz'
-        st_opts = f'--format=spectre --model-file={state_file} --save-model-state'
+        st_opts = ['--format=spectre', f'--model-file={state_file}', '--save-model-state']
 
         # log file
         log_file = self._model_path / f'{self._cell_name}.log'
-        log_opts = f'--log-file={log_file}'
+        log_opts = [f'--log-file={log_file}']
 
         # other options
-        other_opts = '--parallel=4 --max-memory=80% --simultaneous-frequencies=0'
+        other_opts = ['--parallel=4', '--max-memory=80%', '--simultaneous-frequencies=0']
 
         # get extra options
-        extra_opts = ''
+        extra_opts = []
         extra_options: Mapping[str, Any] = self.params['extra_options']
         if extra_options:
             for opt, value in extra_options.items():
-                extra_opts += f'--{opt}={value} '
+                extra_opts.append(f'--{opt}={value}')
 
-        emx_opts = [mesh_opts, freq_opts, port_string, pr_opts, cmd_opts, extra_opts, sp_opts, yp_opts, ym_opts,
-                    st_opts, log_opts, other_opts]
+        emx_opts = mesh_opts + freq_opts + port_string + pr_opts + cmd_opts + extra_opts + sp_opts + yp_opts + \
+                   ym_opts + st_opts + log_opts + other_opts
         return emx_opts, [sp_file, yp_file, ym_file, state_file, log_file]
 
     async def gen_nport(self):
@@ -158,13 +162,12 @@ class EmSim(object):
         emx_cmd = [f'{os.environ["EMX_HOME"]}/emx', str(self._gds_file), self._cell_name, str(self._proc_file)]
         print("EMX simulation started.")
         start = time.time()
-        await self.manager.async_new_subprocess(emx_cmd + emx_opts, cwd=str(self._em_base_path),
-                                                log=f'{self._em_base_path}/bag_emx.log')
-        # TODO: Why is it not waiting?
+        ret_code = await self.manager.async_new_subprocess(emx_cmd + emx_opts, cwd=str(self._em_base_path),
+                                                           log=f'{self._em_base_path}/bag_emx.log')
 
         # check whether ends correctly
-        if not outfiles[-1].exists():
-            raise Exception('EMX stops with error, please check your EMX command.')
+        if ret_code is None or ret_code != 0 or not outfiles[-1].exists():
+            raise Exception('EMX stops with error.')
         else:
             period = (time.time() - start) / 60
             print(f'EMX simulation finished successfully.\nLog file is in {outfiles[-1]}')
@@ -201,14 +204,14 @@ class EmSim(object):
 
         # emx command
         mdl_cmd = [f'{os.environ["EMX_HOME"]}/modelgen'] + mdl_opts
-        print("Model generation started.\n")
+        print("Model generation started.")
         start = time.time()
-        await self.manager.async_new_subprocess(mdl_cmd, cwd=str(self._em_base_path),
-                                                log=f'{self._em_base_path}/bag_modelgen.log')
+        ret_code = await self.manager.async_new_subprocess(mdl_cmd, cwd=str(self._em_base_path),
+                                                           log=f'{self._em_base_path}/bag_modelgen.log')
 
         # check whether ends correctly
-        if not outfiles[0].exists() or not outfiles[1].exists():
-            raise Exception('\nModel generation stops with error, please check your EMX command.')
+        if ret_code is None or ret_code != 0 or not outfiles[0].exists() or not outfiles[1].exists():
+            raise Exception('Model generation stops with error.')
         else:
             period = (time.time() - start) / 60
             print('Model generation finished successfully.')
@@ -219,3 +222,5 @@ class EmSim(object):
         batch_async_task([coro])
         coro = self.gen_model()
         batch_async_task([coro])
+
+        print(*self._ind_cal.sym_ind_cal(), sep='\n')
