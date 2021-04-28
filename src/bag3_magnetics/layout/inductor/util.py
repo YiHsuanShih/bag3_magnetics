@@ -43,7 +43,9 @@ class IndTemplate(TemplateBase):
         pass
 
     def _draw_ind_turn(self, n_turn: int, radius: int, n_side: int, width: int, spacing: int, opening: int,
-                       ind_layid: int, bdg_layid: int, via_width: int, turn: int):
+                       ind_layid: int, bdg_layid: int, via_width: int, turn: int
+                       ) -> Tuple[List[List[PointType]], Optional[List[PointType]], Optional[List[PointType]],
+                                  Optional[List[PointType]], List[PointType], Optional[PointType]]:
         """ draw each turn of inductor
 
         Parameters
@@ -98,17 +100,19 @@ class IndTemplate(TemplateBase):
 
     def _draw_ind_ring(self, halflen: int, width: int, spacing: int, turn: int, n_conn: int, conn_width: int,
                        ind_width: int, opening: int, ind_layid: int, layer_list: List[int], pin_len: int,
-                       orient: Orientation = Orientation.R0) -> Tuple[List[WireArray], List[int]]:
+                       orient: Orientation = Orientation.R0) -> Tuple[List[List[List[List[PointType]]]], List[int]]:
         if n_conn == 1:
             raise ValueError("number of connection points should be larger than 1.")
 
         pitch = width + spacing
+        ring_arr = []
         ring_lenarr = []
         for idx in range(turn):
-            ring_lenarr.append(self.draw_sqr_guardring(halflen + idx * pitch, width, ind_width, opening, ind_layid,
-                                                       layer_list, orient=orient))
+            path_arr, length = self.draw_sqr_guardring(halflen + idx * pitch, width, ind_width, opening, ind_layid,
+                                                       layer_list, orient=orient)
+            ring_arr.append(path_arr)
+            ring_lenarr.append(length)
 
-        ring_conn = []
         # # get connect step on inductor layer
         # conn_tr = self.grid.dim_to_num_tracks(ind_layid, conn_width, round_mode=RoundMode.GREATER_EQ)
         # conn_width = self.grid.track_to_coord(ind_layid, conn_tr)
@@ -166,10 +170,11 @@ class IndTemplate(TemplateBase):
         #                    width=conn_tr.dbl_value)
         #     ring_conn.append(self.add_wires(ind_layid - 1, conn_idx, (-ring_lenarr[-1] - width) // 2,
         #                                     (-ring_lenarr[-1] - width) // 2 + pin_len, width=conn_tr.dbl_value))
-        return ring_conn, ring_lenarr
+        return ring_arr, ring_lenarr
 
     def draw_sqr_guardring(self, halflen: int, width: int, ind_width: int, opening: int, ind_layid: int,
-                           layer_list: List[int], orient: Orientation = Orientation.R0) -> int:
+                           layer_list: List[int], orient: Orientation = Orientation.R0
+                           ) -> Tuple[List[List[List[PointType]]], int]:
         """
 
         Draw inductor guard ring for designated layers
@@ -193,7 +198,10 @@ class IndTemplate(TemplateBase):
 
         Returns
         ----------
-        length of guard ring
+        path_arr: List[List[List[PointType]]]
+            Array of path co-ordinates
+        length: int
+            length of guard ring
         """
 
         # check if all layers are adjacent
@@ -263,7 +271,7 @@ class IndTemplate(TemplateBase):
                     self.draw_via(coord, wid, width, lay_id, lay_id + 1)
                 else:
                     self.draw_via(coord, width, wid, lay_id, lay_id + 1)
-        return length
+        return path_arr, length
 
     # def draw_sqr_guardring(self, halflen: int, width: int, ind_width: int, opening: int, ind_layid: int,
     #                        layer_list: List[int]) -> int:
@@ -534,7 +542,7 @@ class IndTemplate(TemplateBase):
     #         self.draw_path(layid, width, [(x0, -y0), (x0, -length)], end_style=PathStyle.extend)
 
     def _draw_center_tap(self, width: int, n_turn: int, tap_len: int, ind_layid: int, pin_len: int, res3_l: int,
-                         res_space: int, center_tap_coord: PointType):
+                         res_space: int, center_tap_coord: PointType) -> WireArray:
 
         tap_ext = width // 2 + res_space + res3_l
 
@@ -566,7 +574,7 @@ class IndTemplate(TemplateBase):
 
     def _draw_lead(self, ind_layid: int, width: int, lead_len: int, lead_coord: List[PointType], pin_len: int,
                    res1_l: int, res2_l: int, res_space: int, ring_len: int, ring_width: int, orient: Orientation,
-                   via_width: Optional[int] = None):
+                   via_width: Optional[int] = None) -> Tuple[WireArray, WireArray, int]:
         if via_width is None:
             via_width = width
 
@@ -783,8 +791,7 @@ class IndTemplate(TemplateBase):
                 path_arr.append(self.add_path(lp, width, coord, end_style, join_style=join_style))
         return path_arr
 
-    def draw_via(self, via_coord: Union[List[Tuple[int, int]], Tuple[int, int]], width: int, height: int, layid1: int,
-                 layid2: int):
+    def draw_via(self, via_coord: Union[List[PointType], PointType], width: int, height: int, layid1: int, layid2: int):
         """
         draw via between two adjacent layers at given coordinate, width and height
 
@@ -823,7 +830,7 @@ class IndTemplate(TemplateBase):
                 via_arr.append((self.add_via(bbox, bot_lp, top_lp, bot_dir)))
         return via_arr
 
-    def draw_mulvia(self, via_coord: Tuple[int, int], width: int, height: int, bot_layid: int, top_layid: int):
+    def draw_mulvia(self, via_coord: PointType, width: int, height: int, bot_layid: int, top_layid: int):
         """
         draw via stack between any layers at given coordinate, width and height
 
@@ -838,7 +845,7 @@ class IndTemplate(TemplateBase):
             raise ValueError(f'Need to make sure top_layid={top_layid} >= bot_layid={bot_layid}.')
         return mulvia_arr
 
-    def draw_rect(self, layid: int, x0: int, y0: int, x1: int, y1: int):
+    def draw_rect(self, layid: int, x0: int, y0: int, x1: int, y1: int) -> None:
         """
         draw rectangles with given coordinates.
 
@@ -932,7 +939,10 @@ class IndTemplate(TemplateBase):
 
 
 def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: int, bot_open: int, top_open: int,
-                      via_width: int, mode: int):
+                      via_width: int, mode: int) -> Tuple[List[List[PointType]], Optional[List[PointType]], 
+                                                          List[List[PointType]], Optional[List[PointType]], 
+                                                          Optional[List[PointType]], List[PointType], 
+                                                          Optional[PointType]]:
     """
     Get coordinates for all the paths, including lead, tail, via, top, bottom and center tap
 

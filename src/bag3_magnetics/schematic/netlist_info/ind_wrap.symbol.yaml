@@ -46,6 +46,19 @@ terminals:
           - 244
     stype: 0
     ttype: 2
+  VSS:
+    obj:
+      - 0
+      - layer: 229
+        purpose: 4294967295
+        net: ""
+        bbox:
+          - 196
+          - -4
+          - 204
+          - 4
+    stype: 2
+    ttype: 2
 shapes:
   -
     - 5
@@ -203,32 +216,48 @@ shapes:
       visible: true
       drafting: true
       text: PC
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 200
+        - 6
+      alignment: 7
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: VSS
 instances:
   {}
 props:
   interfaceLastChanged:
     - 4
-    - time_val: 1615777868
+    - time_val: 1619553771
   partName:
     - 3
     - ind_wrap
   pin#:
     - 0
-    - 3
+    - 4
   portOrder:
     - 5
     - name: ILList
-      bin_val: ("P1" "P2" "PC")
+      bin_val: ("P1" "P2" "PC" "VSS")
   vendorName:
     - 3
     - ""
 app_defs:
   _dbLastSavedCounter:
     - 0
-    - 136
+    - 154
   _dbvCvTimeStamp:
     - 0
-    - 136
+    - 154
   cdbRevision:
     - 0
     - 227612

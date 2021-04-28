@@ -55,13 +55,15 @@ class bag3_magnetics__ind_wrap(Module):
             res_w='Width of metal resistors',
             res_layer='Layer of metal resistor',
             center_tap='True to have center tap',
+            w_ring='True to have guard ring, False by default',
         )
 
     @classmethod
     def get_default_param_values(cls) -> Dict[str, Any]:
-        return dict(res3_l=0)
+        return dict(res3_l=0, w_ring=False)
 
-    def design(self, res1_l: int, res2_l: int, res3_l: int, res_w: int, res_layer: int, center_tap: bool) -> None:
+    def design(self, res1_l: int, res2_l: int, res3_l: int, res_w: int, res_layer: int, center_tap: bool,
+               w_ring: bool) -> None:
         """To be overridden by subclasses to design this module.
 
         This method should fill in values for all parameters in
@@ -84,3 +86,6 @@ class bag3_magnetics__ind_wrap(Module):
         else:
             self.remove_instance('XRC')
             self.remove_pin('PC')
+        if not w_ring:
+            self.remove_pin('VSS')
+            self.remove_instance('XNC')

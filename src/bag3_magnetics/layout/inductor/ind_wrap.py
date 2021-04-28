@@ -176,13 +176,23 @@ class IndWrap(IndTemplate):
             # ring half length
             tot_dim = ind_master.tot_dim + 2 * (ring_spacing + ring_width)
             ring_hflen = -(- tot_dim // 2) - (ring_width // 2)
-            ring_conn, ring_lenarr = self._draw_ind_ring(ring_hflen, ring_width, ring_gap, ring_turn,
-                                                         ring_conn_n, ring_conn_width, width, opening,
-                                                         layid, ring_laylist, orient=orient,
-                                                         pin_len=pin_len)
+            ring_arr, ring_lenarr = self._draw_ind_ring(ring_hflen, ring_width, ring_gap, ring_turn, ring_conn_n,
+                                                        ring_conn_width, width, opening, layid, ring_laylist,
+                                                        orient=orient, pin_len=pin_len)
             ring_len = tot_dim = ring_lenarr[-1] + ring_width // 2
-            self.add_pin('VSS', ring_conn)
             offset = (tot_dim - ind_master.tot_dim) // 2
+            # connect ring to VSS
+            ring_path = ring_arr[-1][-1]
+            #  2-----1
+            #  |     |
+            #  3-4 5-0
+            # VSS label has to be put at the corner, otherwise EMX errors
+            vss_path = ring_path[-1]
+            ym = vss_path[0][1]
+            vss_bbox = BBox(vss_path[1][0] + width // 2 - 4000, ym - ring_width // 2,
+                            vss_path[1][0] + width // 2, ym - ring_width // 2 + 4000)
+            lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
+            self.add_pin_primitive('VSS', lp[0], vss_bbox)
         else:
             ring_width = 0
             ring_len = 0
@@ -240,7 +250,7 @@ class IndWrap(IndTemplate):
 
         # draw fill
         if w_fill:
-            self._draw_fill(n_side, path_coord, width, layid, fill_specs)
+            self._draw_fill(n_side, ind_path_coord, width, layid, fill_specs)
 
         # set array_box
         self.set_size_from_bound_box(layid, BBox(0, 0, tot_dim, tot_dim), round_up=True)
@@ -253,5 +263,6 @@ class IndWrap(IndTemplate):
             res_w=term_res_w,
             res_layer=layid,
             center_tap=center_tap,
+            w_ring=w_ring,
             # short_terms=short_terms,
         )
