@@ -15,7 +15,7 @@
 
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Any
+from typing import Mapping, Any
 
 import pkg_resources
 from pathlib import Path
@@ -40,12 +40,12 @@ class bag3_magnetics__ind_wrap(Module):
         Module.__init__(self, self.yaml_file, database, params, **kwargs)
 
     @classmethod
-    def get_params_info(cls) -> Dict[str, str]:
+    def get_params_info(cls) -> Mapping[str, str]:
         """Returns a dictionary from parameter names to descriptions.
 
         Returns
         -------
-        param_info : Optional[Dict[str, str]]
+        param_info : Optional[Mapping[str, str]]
             dictionary from parameter names to descriptions.
         """
         return dict(
@@ -59,8 +59,8 @@ class bag3_magnetics__ind_wrap(Module):
         )
 
     @classmethod
-    def get_default_param_values(cls) -> Dict[str, Any]:
-        return dict(res3_l=0, w_ring=False)
+    def get_default_param_values(cls) -> Mapping[str, Any]:
+        return dict(res3_l=0, w_ring=False, center_tap=False)
 
     def design(self, res1_l: int, res2_l: int, res3_l: int, res_w: int, res_layer: int, center_tap: bool,
                w_ring: bool) -> None:
