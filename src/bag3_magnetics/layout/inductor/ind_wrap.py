@@ -193,11 +193,13 @@ class IndWrap(IndTemplate):
                             vss_path[1][0] + width // 2, ym - ring_width // 2 + 4000)
             lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
             self.add_pin_primitive('VSS', lp[0], vss_bbox)
+            inner_ring_path = ring_arr[0]
         else:
             ring_width = 0
             ring_len = 0
             offset = 0
             tot_dim = ind_master.tot_dim
+            inner_ring_path = None
 
         # find Transform
         if orient is Orientation.R0:
@@ -250,7 +252,7 @@ class IndWrap(IndTemplate):
 
         # draw fill
         if w_fill:
-            self._draw_fill(n_side, ind_path_coord, width, layid, fill_specs)
+            self._draw_fill(n_side, ind_path_coord, width, layid, fill_specs, inner_ring_path, ring_width)
 
         # set array_box
         self.set_size_from_bound_box(layid, BBox(0, 0, tot_dim, tot_dim), round_up=True)

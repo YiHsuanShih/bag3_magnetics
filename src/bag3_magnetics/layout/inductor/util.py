@@ -867,7 +867,8 @@ class IndTemplate(TemplateBase):
         self.add_rect(lp, bbox)
 
     def _draw_fill(self, n_side: int, path_coord: List[List[List[PointType]]], width: int, ind_layid: int,
-                   fill_specs: Mapping[str, Any]) -> None:
+                   fill_specs: Mapping[str, Any], ring_coord: Optional[List[List[List[PointType]]]],
+                   ring_width: int) -> None:
         #       4   3
         #   5           2
         #   6           1
@@ -914,15 +915,41 @@ class IndTemplate(TemplateBase):
                              coord[3][0] + width // 2 + fill_sp, coord[5][1] + width // 2 + fill_sp)
             bbox_out = BBox(coord[5][0] - width // 2, coord[7][1] - width // 2,
                             coord[1][0] + width // 2, coord[3][1] + width // 2)
-            tot_num = (bbox_out.w + fill_sp) // (fill_w + fill_sp)
+            if ring_coord:
+                ring_in = ring_coord[-1]
+                rcoord = [path[0] for path in ring_in]
+                #  2-----1
+                #  |     |
+                #  3-4 5-0
+                rbbox = BBox(rcoord[2][0] + ring_width // 2 + fill_sp, rcoord[3][1] + ring_width // 2 + fill_sp,
+                             rcoord[0][0] - ring_width // 2 - fill_sp, rcoord[1][1] - ring_width // 2 - fill_sp)
+            else:
+                rbbox = bbox_out
+
+            tot_num = (rbbox.w + fill_sp) // (fill_w + fill_sp)
             tot_len = tot_num * (fill_w + fill_sp) - fill_sp
-            xl = bbox_out.xl + (bbox_out.w - tot_len) // 2
-            yl = bbox_out.yl + (bbox_out.w - tot_len) // 2
+            xl = rbbox.xl + (rbbox.w - tot_len) // 2
+            yl = rbbox.yl + (rbbox.w - tot_len) // 2
             for idx in range(tot_num):
                 for jdx in range(tot_num):
                     _xl = xl + idx * (fill_w + fill_sp)
                     _yl = yl + jdx * (fill_w + fill_sp)
-                    if _xl + _yl + 2 * fill_w < bbox_out.xl + bbox_out2.yl:
+                    if bbox_out2.xl < _xl < bbox_out2.xh - fill_w and _yl + fill_w < bbox_out.yl - fill_sp:
+                        # keep-out
+                        continue
+                    elif _xl + fill_w < bbox_out.xl - fill_sp:
+                        # left
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    elif _xl > bbox_out.xh + fill_sp:
+                        # right
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    elif _yl > bbox_out.yh + fill_sp:
+                        # top
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    elif _yl + fill_w < bbox_out.yl - fill_sp:
+                        # bottom
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                    elif _xl + _yl + 2 * fill_w < bbox_out.xl + bbox_out2.yl:
                         # lower left
                         self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
                     elif _yl - _xl - fill_w > bbox_out2.yh - bbox_out.xl:
