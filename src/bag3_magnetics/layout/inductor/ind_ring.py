@@ -105,8 +105,8 @@ class IndRing(IndTemplate):
         # VSS label has to be put at the corner, otherwise EMX errors
         vss_path = self._outer_path_coord[-1]
         ym = vss_path[0][1]
-        vss_bbox = BBox(vss_path[1][0] + core_width // 2 - 4000, ym - ring_width // 2,
-                        vss_path[1][0] + core_width // 2, ym - ring_width // 2 + 4000)
+        vss_bbox = BBox(vss_path[1][0] + core_width // 2 - pin_len, ym - ring_width // 2,
+                        vss_path[1][0] + core_width // 2, ym - ring_width // 2 + pin_len)
         lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
         self.add_pin_primitive('VSS', lp[0], vss_bbox)
 
