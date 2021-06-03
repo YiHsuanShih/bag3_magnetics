@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-from typing import List, Mapping, Any, Union, Optional, Type
+from typing import Mapping, Any, Union, Optional, Type
 
 from bag.layout.template import TemplateDB
 from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.design.module import Module
 
-from pybag.enum import Orientation
+from pybag.enum import Orientation, RoundMode
 from pybag.core import Transform
 
 from .util import IndTemplate
 from .ind_core import IndCore
+from .ind_ring import IndRing
 from ...schematic.ind_wrap import bag3_magnetics__ind_wrap
 
 
@@ -51,18 +52,9 @@ class IndWrap(IndTemplate):
 
             w_ring='True to have guard ring, False by default',
             ring_specs='Specs for guard ring, Optional',
-            # ring_spacing='spacing between ring and inductor',
-            # ring_width='ring width',
-            # ring_gap='gap distance between rings',
-            # ring_turn='ring turn number',
-            # ring_laylist='ring layer list',
-            # ring_conn_n='ring connection numbers',
-            # ring_conn_width='ring connection width',
 
             center_tap='True to have center tap, False by default',
             center_tap_specs='Specs for center tap, Optional',
-            # res3_l='length of metal resistor connecting to PC',
-            # tap_len='inductor tap length',
 
             # dum_wid_list='dummy metal side width list',
             # dum_den_list='dummy metal density list',
@@ -86,8 +78,6 @@ class IndWrap(IndTemplate):
 
             w_fill='True to have metal fill',
             fill_specs='Specs for metal fill',
-            # fill_w='metal width for fill',
-            # fill_sp='metal spacing for fill',
         )
 
     @classmethod
@@ -133,7 +123,6 @@ class IndWrap(IndTemplate):
         res2_l: int = self.params['res2_l']
         pin_len: int = self.params['pin_len']
         res_space: int = self.params['res_space']
-        # short_terms: bool = self.params['short_terms']
         orient: Union[str, Orientation] = self.params['orient']
         if isinstance(orient, str):
             orient = Orientation[orient]
@@ -148,6 +137,7 @@ class IndWrap(IndTemplate):
         # hard coded number of side
         n_side = 8
 
+        # make inductor core
         ind_params = dict(
             n_side=n_side,
             n_turn=n_turn,
@@ -156,63 +146,69 @@ class IndWrap(IndTemplate):
             spacing=spacing,
             width=width,
             opening=opening,
+            orient=orient,
             via_width=via_width,
             min_width=min_width,
             min_spacing=min_spacing,
         )
-
         ind_master: IndCore = self.new_template(IndCore, params=ind_params)
 
-        # draw guard ring
+        # make inductor guard ring
         if w_ring:
-            ring_spacing: int = ring_specs['ring_spacing']
-            ring_width: int = ring_specs['ring_width']
-            ring_gap: int = ring_specs['ring_gap']
-            ring_turn: int = ring_specs['ring_turn']
-            ring_laylist: List[int] = ring_specs['ring_laylist']
-            ring_conn_n: int = ring_specs['ring_conn_n']
-            ring_conn_width: int = ring_specs['ring_conn_width']
+            ring_params = dict(
+                **ring_specs,
+                core_dim=ind_master.tot_dim,
+                core_opening=ind_master.opening,
+                core_width=width,
+                layid=layid,
+                orient=orient,
+                pin_len=pin_len,
+            )
+            ring_master: IndRing = self.new_template(IndRing, params=ring_params)
 
-            # ring half length
-            tot_dim = ind_master.tot_dim + 2 * (ring_spacing + ring_width)
-            ring_hflen = -(- tot_dim // 2) - (ring_width // 2)
-            ring_arr, ring_lenarr = self._draw_ind_ring(ring_hflen, ring_width, ring_gap, ring_turn, ring_conn_n,
-                                                        ring_conn_width, width, opening, layid, ring_laylist,
-                                                        orient=orient, pin_len=pin_len)
-            ring_len = tot_dim = ring_lenarr[-1] + ring_width // 2
-            offset = (tot_dim - ind_master.tot_dim) // 2
-            # connect ring to VSS
-            ring_path = ring_arr[-1][-1]
-            #  2-----1
-            #  |     |
-            #  3-4 5-0
-            # VSS label has to be put at the corner, otherwise EMX errors
-            vss_path = ring_path[-1]
-            ym = vss_path[0][1]
-            vss_bbox = BBox(vss_path[1][0] + width // 2 - 4000, ym - ring_width // 2,
-                            vss_path[1][0] + width // 2, ym - ring_width // 2 + 4000)
-            lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
-            self.add_pin_primitive('VSS', lp[0], vss_bbox)
-            inner_ring_path = ring_arr[0]
+            ring_width: int = ring_specs['ring_width']
+            ring_len = tot_dim = ring_master.tot_dim
+            offset = (ring_len - ind_master.tot_dim) // 2
         else:
             ring_width = 0
             ring_len = 0
+            ring_master: Optional[IndRing] = None
             offset = 0
             tot_dim = ind_master.tot_dim
-            inner_ring_path = None
 
-        # find Transform
-        if orient is Orientation.R0:
-            xform = Transform(dx=offset, dy=offset)
-        elif orient is Orientation.R90:
-            xform = Transform(dx=tot_dim - offset, dy=offset, mode=orient)
+        # find extra ring offset for putting lead on grid
+        ind_lead_coord = []
+        for coord in ind_master.lead_coord:
+            ind_lead_coord.append((coord[0] + offset, coord[1] + offset))
+
+        if orient in (Orientation.R0, Orientation.MY) and layid % 2 == 1 or \
+                orient is Orientation.R270 and layid % 2 == 0:
+            term0_idx = self.grid.coord_to_track(layid, ind_lead_coord[0][1], RoundMode.NEAREST)
+            term1_idx = self.grid.coord_to_track(layid, ind_lead_coord[1][1], RoundMode.NEAREST)
+            term0_coord = self.grid.track_to_coord(layid, term0_idx)
+            term1_coord = self.grid.track_to_coord(layid, term1_idx)
+            offset2 = (term0_coord + term1_coord - ind_lead_coord[0][1] - ind_lead_coord[1][1]) // 2
+            offset_ring_x = 0
+            offset_ring_y = offset2
+        elif orient is Orientation.R270 and layid % 2 == 1 or \
+                orient in (Orientation.R0, Orientation.MY) and layid % 2 == 0:
+            term0_idx = self.grid.coord_to_track(layid - 1, ind_lead_coord[0][0], RoundMode.NEAREST)
+            term1_idx = self.grid.coord_to_track(layid - 1, ind_lead_coord[1][0], RoundMode.NEAREST)
+            term0_coord = self.grid.track_to_coord(layid - 1, term0_idx)
+            term1_coord = self.grid.track_to_coord(layid - 1, term1_idx)
+            offset2 = (term0_coord + term1_coord - ind_lead_coord[0][0] - ind_lead_coord[1][0]) // 2
+            offset_ring_x = offset2
+            offset_ring_y = 0
         else:
-            raise NotImplementedError(f'orient={orient} not implemented yet.')
+            raise NotImplementedError('Not supported yet.')
+
+        # find overall Transform
+        xform = Transform(dx=offset_ring_x + offset, dy=offset_ring_y + offset)
+        xform_ring = Transform(dx=offset_ring_x, dy=offset_ring_y)
 
         # update coords of ind_master
-        path_coord = ind_master.path_coord
         ind_path_coord = []
-        for turn in path_coord:
+        for turn in ind_master.path_coord:
             path_n = []
             for path in turn:
                 coord_n = []
@@ -221,9 +217,8 @@ class IndWrap(IndTemplate):
                 path_n.append(coord_n)
             ind_path_coord.append(path_n)
 
-        lead_coord = ind_master.lead_coord
         ind_lead_coord = []
-        for coord in lead_coord:
+        for coord in ind_master.lead_coord:
             ind_lead_coord.append((coord[0] + xform.x, coord[1] + xform.y))
 
         center_tap_coord = ind_master.center_tap_coord
@@ -231,6 +226,23 @@ class IndWrap(IndTemplate):
 
         # place inductor
         self.add_instance(ind_master, inst_name='XIND', xform=xform)
+
+        # place inductor guard ring
+        if w_ring:
+            # update coords of ring_master
+            ring_path_coord = []
+            for turn in ring_master.inner_path_coord:
+                path_n = []
+                for path in turn:
+                    coord_n = []
+                    for coord in path:
+                        coord_n.append((coord[0] + xform_ring.x, coord[1] + xform_ring.y))
+                    path_n.append(coord_n)
+                ring_path_coord.append(path_n)
+            ring_inst = self.add_instance(ring_master, inst_name='XRING', xform=xform_ring)
+            self.reexport(ring_inst.get_port('VSS'))
+        else:
+            ring_path_coord = None
 
         # draw leads
         term0, term1, term_res_w = self._draw_lead(layid, width, lead_len, ind_lead_coord, pin_len,
@@ -245,17 +257,18 @@ class IndWrap(IndTemplate):
         if center_tap:
             res3_l: int = center_tap_specs['res3_l']
             tap_len: int = center_tap_specs['tap_len']
-            tap = self._draw_center_tap(width, n_turn, tap_len, layid, pin_len, res3_l, res_space, ind_center_tap_coord)
+            tap = self._draw_center_tap(width, n_turn, tap_len, layid, pin_len, res3_l, res_space, ind_center_tap_coord,
+                                        orient)
             self.add_pin('PC', tap)
         else:
             res3_l = 0
 
         # draw fill
         if w_fill:
-            self._draw_fill(n_side, ind_path_coord, width, layid, fill_specs, inner_ring_path, ring_width)
+            self._draw_fill(n_side, ind_path_coord, width, layid, fill_specs, ring_path_coord, ring_width, orient)
 
         # set array_box
-        self.set_size_from_bound_box(layid, BBox(0, 0, tot_dim, tot_dim), round_up=True)
+        self.set_size_from_bound_box(layid, BBox(0, 0, tot_dim + offset_ring_x, tot_dim + offset_ring_y), round_up=True)
 
         # Step 8: get schematic parameters
         self.sch_params = dict(
@@ -266,5 +279,4 @@ class IndWrap(IndTemplate):
             res_layer=layid,
             center_tap=center_tap,
             w_ring=w_ring,
-            # short_terms=short_terms,
         )

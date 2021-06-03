@@ -13,7 +13,7 @@ from pybag.enum import PathStyle, Orientation, RoundMode, Direction
 
 
 class IndTemplate(TemplateBase):
-    """A inductor template.
+    """An inductor template.
     """
 
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
@@ -43,7 +43,7 @@ class IndTemplate(TemplateBase):
         pass
 
     def _draw_ind_turn(self, n_turn: int, radius: int, n_side: int, width: int, spacing: int, opening: int,
-                       ind_layid: int, bdg_layid: int, via_width: int, turn: int
+                       orient: Orientation, ind_layid: int, bdg_layid: int, via_width: int, turn: int
                        ) -> Tuple[List[List[PointType]], Optional[List[PointType]], Optional[List[PointType]],
                                   Optional[List[PointType]], List[PointType], Optional[PointType]]:
         """ draw each turn of inductor
@@ -62,6 +62,8 @@ class IndTemplate(TemplateBase):
             inductor spacing (gap), in resolution unit.
         opening: float or int
             inductor opening pitch, in resolution unit
+        orient: Orientation
+            orientation of the inductor
         ind_layid : int
             the layer id.
         bdg_layid : int
@@ -73,7 +75,12 @@ class IndTemplate(TemplateBase):
         """
 
         if turn == 0 and n_turn == 1:  # outer path with only 1 turn inductor (mode 1)
-            mode = 1
+            if orient is Orientation.R0:
+                mode = 1
+            elif orient is Orientation.R270:
+                mode = 14
+            else:
+                raise NotImplementedError(f'orient={orient} is not supported yet.')
         elif turn == 0 and n_turn > 1:  # outer path with more than 1 turn inductor (mode 2)
             mode = 2
         elif turn == n_turn - 1 and n_turn % 2 == 0:  # inner path with odd turn index (mode 3)
@@ -99,7 +106,7 @@ class IndTemplate(TemplateBase):
         return path_coord, lead_coord, top_coord, bot_coord, via_coord, center_tap_coord
 
     def _draw_ind_ring(self, halflen: int, width: int, spacing: int, turn: int, n_conn: int, conn_width: int,
-                       ind_width: int, opening: int, ind_layid: int, layer_list: List[int], pin_len: int,
+                       opening: int, ind_layid: int, layer_list: List[int], pin_len: int,
                        orient: Orientation = Orientation.R0) -> Tuple[List[List[List[List[PointType]]]], List[int]]:
         if n_conn == 1:
             raise ValueError("number of connection points should be larger than 1.")
@@ -108,7 +115,7 @@ class IndTemplate(TemplateBase):
         ring_arr = []
         ring_lenarr = []
         for idx in range(turn):
-            path_arr, length = self.draw_sqr_guardring(halflen + idx * pitch, width, ind_width, opening, ind_layid,
+            path_arr, length = self.draw_sqr_guardring(halflen + idx * pitch, width, opening, ind_layid,
                                                        layer_list, orient=orient)
             ring_arr.append(path_arr)
             ring_lenarr.append(length)
@@ -172,9 +179,8 @@ class IndTemplate(TemplateBase):
         #                                     (-ring_lenarr[-1] - width) // 2 + pin_len, width=conn_tr.dbl_value))
         return ring_arr, ring_lenarr
 
-    def draw_sqr_guardring(self, halflen: int, width: int, ind_width: int, opening: int, ind_layid: int,
-                           layer_list: List[int], orient: Orientation = Orientation.R0
-                           ) -> Tuple[List[List[List[PointType]]], int]:
+    def draw_sqr_guardring(self, halflen: int, width: int, opening: int, ind_layid: int, layer_list: List[int],
+                           orient: Orientation = Orientation.R0) -> Tuple[List[List[List[PointType]]], int]:
         """
 
         Draw inductor guard ring for designated layers
@@ -185,8 +191,6 @@ class IndTemplate(TemplateBase):
             guard ring half length
         width: float
             guard ring metal width
-        ind_width: float
-            inductor width
         opening : int
             lead opening
         ind_layid: int
@@ -224,7 +228,7 @@ class IndTemplate(TemplateBase):
                 elif orient in (Orientation.R180, Orientation.MX):
                     mode = 10
                 elif orient is Orientation.R90:
-                    mode = 12
+                    mode = 13
                 elif orient is Orientation.R270:
                     mode = 14
                 else:
@@ -233,8 +237,7 @@ class IndTemplate(TemplateBase):
                 mode = 0
 
             # put them in an array
-            path_coord, _, _, _, _, _, _ = get_octpath_coord(radius, 0, n_side, width, 0, opening + ind_width * 4, 0, 0,
-                                                             mode=mode)
+            path_coord, _, _, _, _, _, _ = get_octpath_coord(radius, 0, n_side, width, 0, opening, 0, 0, mode=mode)
             path_arr.append(path_coord)
 
         # draw path
@@ -542,32 +545,53 @@ class IndTemplate(TemplateBase):
     #         self.draw_path(layid, width, [(x0, -y0), (x0, -length)], end_style=PathStyle.extend)
 
     def _draw_center_tap(self, width: int, n_turn: int, tap_len: int, ind_layid: int, pin_len: int, res3_l: int,
-                         res_space: int, center_tap_coord: PointType) -> WireArray:
-
+                         res_space: int, center_tap_coord: PointType, orient: Orientation) -> WireArray:
         tap_ext = width // 2 + res_space + res3_l
 
         if n_turn % 2:
-            tap_bbox = BBox(center_tap_coord[0] - width // 2, center_tap_coord[1],
-                            center_tap_coord[0] + width // 2, center_tap_coord[1] + tap_ext + tap_len)
-            lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
-            self.add_rect(lp, tap_bbox)
+            if orient in (Orientation.R0, Orientation.MY) and ind_layid % 2 == 1 or \
+                    orient is Orientation.R270 and ind_layid % 2 == 0:
+                # add tap
+                tap_idx = self.grid.coord_to_track(ind_layid, center_tap_coord[1], RoundMode.NEAREST)
+                track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.GREATER_EQ)
+                tap_ = self.add_wires(ind_layid, tap_idx, lower=center_tap_coord[0],
+                                      upper=center_tap_coord[0] + tap_ext + tap_len, width=track.dbl_value)
+                tap_bbox = tap_.bound_box
+                tap_res_bbox = BBox(tap_bbox.xh - tap_len - res_space - res3_l, tap_bbox.yl,
+                                    tap_bbox.xh - tap_len - res_space, tap_bbox.yh)
+
+                # add ind_layid wire
+                tap = self.add_wires(ind_layid, tap_idx, lower=tap_res_bbox.xh + res_space,
+                                     upper=tap_res_bbox.xh + res_space + pin_len, width=track.dbl_value)
+
+            elif orient is Orientation.R270 and ind_layid % 2 == 1 or \
+                    orient in (Orientation.R0, Orientation.MY) and ind_layid % 2 == 0:
+                # add tap
+                tap_bbox = BBox(center_tap_coord[0] - width // 2, center_tap_coord[1],
+                                center_tap_coord[0] + width // 2, center_tap_coord[1] + tap_ext + tap_len)
+                lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
+                self.add_rect(lp, tap_bbox)
+
+                tap_res_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len - res_space - res3_l, tap_bbox.xh,
+                                    tap_bbox.yh - tap_len - res_space)
+
+                # add (ind_layid - 1) wire
+                tap_idx = self.grid.coord_to_track(ind_layid - 1, center_tap_coord[0], RoundMode.NEAREST)
+                wire_lower = tap_bbox.yh - tap_len
+                # get track width
+                track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.GREATER_EQ)
+                tap = self.add_wires(ind_layid - 1, tap_idx, lower=wire_lower, upper=wire_lower + pin_len,
+                                     width=track.dbl_value)
+                # add via to (ind_layid - 1) wire
+                pin_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len, tap_bbox.xh, tap_bbox.yh)
+                self.connect_bbox_to_track_wires(Direction.UPPER, lp, pin_bbox, tap)
+
+            else:
+                raise NotImplementedError('not supported yet')
 
             # add metal res
-            tap_res_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len - res_space - res3_l, tap_bbox.xh,
-                                tap_bbox.yh - tap_len - res_space)
             self.add_res_metal(ind_layid, tap_res_bbox)
 
-            # add (ind_layid - 1) wire
-            tap_idx = self.grid.coord_to_track(ind_layid - 1, center_tap_coord[0], RoundMode.NEAREST)
-            wire_lower = tap_bbox.yh - tap_len
-            # get track width
-            track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.GREATER_EQ)
-            tap = self.add_wires(ind_layid - 1, tap_idx, lower=wire_lower, upper=wire_lower + pin_len,
-                                 width=track.dbl_value)
-
-            # add via to (ind_layid - 1) wire
-            pin_bbox = BBox(tap_bbox.xl, tap_bbox.yh - tap_len, tap_bbox.xh, tap_bbox.yh)
-            self.connect_bbox_to_track_wires(Direction.UPPER, lp, pin_bbox, tap)
             return tap
         else:
             raise NotImplementedError('Multiple turns not supported yet.')
@@ -577,47 +601,44 @@ class IndTemplate(TemplateBase):
                    via_width: Optional[int] = None) -> Tuple[WireArray, WireArray, int]:
         if via_width is None:
             via_width = width
+        lead_ext = width // 2 + res_space + max(res1_l, res2_l)
 
         if orient in (Orientation.R0, Orientation.MY) and ind_layid % 2 == 1 or \
                 orient is Orientation.R270 and ind_layid % 2 == 0:
             # get track width
             track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.GREATER_EQ)
             # get track index
-            term0_idx = self.grid.coord_to_track(ind_layid, lead_coord[0][0], RoundMode.NEAREST)
-            term1_idx = self.grid.coord_to_track(ind_layid, lead_coord[1][0], RoundMode.NEAREST)
-            # draw metal for pins
-            term_coord_lower = -(ring_len + ring_width) // 2 - lead_len - width // 2
-            term_coord_upper = -(ring_len + ring_width) // 2 - lead_len - width // 2 + pin_len
+            term0_idx = self.grid.coord_to_track(ind_layid, lead_coord[0][1], RoundMode.NEAREST)
+            term1_idx = self.grid.coord_to_track(ind_layid, lead_coord[1][1], RoundMode.NEAREST)
             # draw leads
-            self.add_wires(ind_layid, term0_idx, lower=term_coord_lower, upper=lead_coord[0][1] + width // 2,
-                           width=track.dbl_value)
-            self.add_wires(ind_layid, term1_idx, lower=term_coord_lower, upper=lead_coord[1][1] + width // 2,
-                           width=track.dbl_value)
+            term_lower_coord = min(0, lead_coord[0][0] - lead_len - lead_ext)
+            self.add_wires(ind_layid, term0_idx, lower=term_lower_coord, upper=lead_coord[0][0], width=track.dbl_value)
+            self.add_wires(ind_layid, term1_idx, lower=term_lower_coord, upper=lead_coord[1][0], width=track.dbl_value)
 
             # draw metal for pins
-            term0 = self.add_wires(ind_layid, term0_idx, lower=term_coord_lower, upper=term_coord_upper,
+            term0 = self.add_wires(ind_layid, term0_idx, lower=term_lower_coord, upper=term_lower_coord + pin_len,
                                    width=track.dbl_value)
-            term1 = self.add_wires(ind_layid, term1_idx, lower=term_coord_lower, upper=term_coord_upper,
+            term1 = self.add_wires(ind_layid, term1_idx, lower=term_lower_coord, upper=term_lower_coord + pin_len,
                                    width=track.dbl_value)
+
             # add metal res
             term0_bbox = term0.bound_box
-            if ind_layid % 2 == 1:
+            term1_bbox = term1.bound_box
+            if ind_layid % 2:
                 term0_res_bbox = BBox(term0_bbox.xl, term0_bbox.yh + res_space, term0_bbox.xh,
                                       term0_bbox.yh + res1_l + res_space)
+                term1_res_bbox = BBox(term1_bbox.xl, term1_bbox.yh + res_space, term1_bbox.xh,
+                                      term1_bbox.yh + res2_l + res_space)
+                term_res_w = term0_bbox.w
             else:
                 term0_res_bbox = BBox(term0_bbox.xh + res_space, term0_bbox.yl, term0_bbox.xh + res1_l + res_space,
                                       term0_bbox.yh)
-            self.add_res_metal(ind_layid, term0_res_bbox)
-            term1_bbox = term1.bound_box
-            if ind_layid % 2 == 1:
-                term1_res_bbox = BBox(term1_bbox.xl, term1_bbox.yh + res_space, term1_bbox.xh,
-                                      term1_bbox.yh + res2_l + res_space)
-            else:
                 term1_res_bbox = BBox(term1_bbox.xh + res_space, term1_bbox.yl, term1_bbox.xh + res2_l + res_space,
                                       term1_bbox.yh)
+                term_res_w = term0_bbox.h
+            self.add_res_metal(ind_layid, term0_res_bbox)
             self.add_res_metal(ind_layid, term1_res_bbox)
 
-            term_res_w = term0_bbox.w if ind_layid % 2 else term0_bbox.h
             # if orient is MY, swap two terminals
             if orient is Orientation.MY:
                 term0, term1 = term1, term0
@@ -721,10 +742,10 @@ class IndTemplate(TemplateBase):
             term1_idx = self.grid.coord_to_track(ind_layid - 1, lead_coord[1][0], RoundMode.NEAREST)
 
             # draw metal for pins
-            lead_ext = width // 2 + res_space + max(res1_l, res2_l)
-            term0_bbox = BBox(lead_coord[0][0] - width // 2, lead_coord[0][1] - lead_ext - lead_len,
+            term_lower_coord = min(0, lead_coord[0][1] - lead_len - lead_ext)
+            term0_bbox = BBox(lead_coord[0][0] - width // 2, term_lower_coord,
                               lead_coord[0][0] + width // 2, lead_coord[0][1])
-            term1_bbox = BBox(lead_coord[1][0] - width // 2, lead_coord[1][1] - lead_ext - lead_len,
+            term1_bbox = BBox(lead_coord[1][0] - width // 2, term_lower_coord,
                               lead_coord[1][0] + width // 2, lead_coord[1][1])
 
             lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
@@ -868,23 +889,29 @@ class IndTemplate(TemplateBase):
 
     def _draw_fill(self, n_side: int, path_coord: List[List[List[PointType]]], width: int, ind_layid: int,
                    fill_specs: Mapping[str, Any], ring_coord: Optional[List[List[List[PointType]]]],
-                   ring_width: int) -> None:
-        #       4   3
-        #   5           2
-        #   6           1
-        #       7   0
+                   ring_width: int, orient: Orientation) -> None:
         fill_w: int = fill_specs['fill_w']
         fill_sp: int = fill_specs['fill_sp']
         lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
         if n_side == 8:
+            #          R0                     R270
+            #       4------3                4------3
+            #   5              2        5              2
+            #   |              |        6              |
+            #   |              |                       |
+            #   |              |        7              |
+            #   6              1        8              1
+            #       7-8  9-0                9------0
+
             # Step 1: draw inside ring
             path_in = path_coord[-1]
             coord = [path[0] for path in path_in]
 
-            bbox_in = BBox(coord[5][0] + width // 2 + fill_sp, coord[7][1] + width // 2 + fill_sp,
+            bbox_in = BBox(coord[5][0] + width // 2 + fill_sp, coord[0][1] + width // 2 + fill_sp,
                            coord[1][0] - width // 2 - fill_sp, coord[3][1] - width // 2 - fill_sp)
-            bbox_in2 = BBox(coord[7][0] + width // 2, coord[1][1] + width // 2,
+            bbox_in2 = BBox(coord[4][0] + width // 2, coord[1][1] + width // 2,
                             coord[3][0] - width // 2, coord[5][1] - width // 2)
+
             tot_num = (bbox_in.w + fill_sp) // (fill_w + fill_sp)
             tot_len = tot_num * (fill_w + fill_sp) - fill_sp
             xl = bbox_in.xl + (bbox_in.w - tot_len) // 2
@@ -911,17 +938,20 @@ class IndTemplate(TemplateBase):
             path_out = path_coord[0]
             coord = [path[0] for path in path_out]
 
-            bbox_out2 = BBox(coord[7][0] - width // 2 - fill_sp, coord[1][1] - width // 2 - fill_sp,
+            bbox_out2 = BBox(coord[4][0] - width // 2 - fill_sp, coord[1][1] - width // 2 - fill_sp,
                              coord[3][0] + width // 2 + fill_sp, coord[5][1] + width // 2 + fill_sp)
-            bbox_out = BBox(coord[5][0] - width // 2, coord[7][1] - width // 2,
+            bbox_out = BBox(coord[5][0] - width // 2, coord[0][1] - width // 2,
                             coord[1][0] + width // 2, coord[3][1] + width // 2)
             if ring_coord:
                 ring_in = ring_coord[-1]
                 rcoord = [path[0] for path in ring_in]
-                #  2-----1
-                #  |     |
-                #  3-4 5-0
-                rbbox = BBox(rcoord[2][0] + ring_width // 2 + fill_sp, rcoord[3][1] + ring_width // 2 + fill_sp,
+                #    R0           R270
+                #  2-----1      2-----1
+                #  |     |      3     |
+                #  |     |            |
+                #  |     |      4     |
+                #  3-4 5-0      5-----0
+                rbbox = BBox(rcoord[2][0] + ring_width // 2 + fill_sp, rcoord[0][1] + ring_width // 2 + fill_sp,
                              rcoord[0][0] - ring_width // 2 - fill_sp, rcoord[1][1] - ring_width // 2 - fill_sp)
             else:
                 rbbox = bbox_out
@@ -934,7 +964,10 @@ class IndTemplate(TemplateBase):
                 for jdx in range(tot_num):
                     _xl = xl + idx * (fill_w + fill_sp)
                     _yl = yl + jdx * (fill_w + fill_sp)
-                    if bbox_out2.xl < _xl < bbox_out2.xh - fill_w and _yl + fill_w < bbox_out.yl - fill_sp:
+                    if (orient is Orientation.R0 and bbox_out2.xl < _xl < bbox_out2.xh - fill_w and
+                        _yl + fill_w < bbox_out.yl - fill_sp) or \
+                            (orient is Orientation.R270 and _xl + fill_w < bbox_out.xl - fill_sp
+                             and bbox_out2.yl < _yl < bbox_out2.yh - fill_w):
                         # keep-out
                         continue
                     elif _xl + fill_w < bbox_out.xl - fill_sp:
@@ -1032,13 +1065,22 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
     bot_l_coord1 = ((-bot_bdg1 // 2) - width - (via_width - width) // 2 + offset, coord[0][1])
 
     # Step 2: lead coordinate
-    # lead coordinate
+    # lead coordinate for R0
     lead_coord0 = [(-bot_open // 2 + offset, coord[0][1]), (bot_open // 2 + offset, coord[0][1])]
 
-    # bot/top open
+    # bot/top open for R0
     bot_open_coord = lead_coord0
     top_open_coord = [(-top_open // 2 + offset, coord[n_side//2][1]),
                       (top_open // 2 + offset, coord[n_side//2][1])]
+
+    # lead coordinate for R270
+    lead_coord270 = [(coord[n_side * 3 // 4][0], -bot_open // 2 + offset),
+                     (coord[n_side * 3 // 4][0], bot_open // 2 + offset)]
+
+    # right/left open for R270
+    left_open_coord = lead_coord270
+    right_open_coord = [(coord[n_side // 4][0], -top_open // 2 + offset),
+                        (coord[n_side // 4][0], top_open // 2 + offset)]
 
     # Step 3: get all coordinates under different mode
     path_coord = []
@@ -1190,7 +1232,7 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
             else:
                 path_coord.append([coord[i], coord[i+1]])
 
-    elif mode == 12:    # mode 12: a turn with top/bot open
+    elif mode == 12:    # Mode 12: a turn with top/bot open
         for i in range(n_side):
             if i == n_side - 1:
                 path_coord.append([coord[-1], bot_open_coord[0]])
@@ -1200,6 +1242,16 @@ def get_octpath_coord(radius: int, turn: int, n_side: int, width: int, spacing: 
                 path_coord.append([top_open_coord[0], coord[n_side//2]])
             else:
                 path_coord.append([coord[i], coord[i+1]])
+
+    elif mode == 14:    # Mode 14: a turn with left open
+        lead_coord = lead_coord270
+        center_tap_coord = (coord[n_side // 4][0], offset)
+        for i in range(n_side):
+            if i == n_side * 3 // 4 - 1:
+                path_coord.append([coord[i], left_open_coord[1]])
+                path_coord.append([left_open_coord[0], coord[i + 1]])
+            else:
+                path_coord.append([coord[i], coord[(i + 1) % n_side]])
 
     else:
         raise ValueError("Other modes are not done yet.")

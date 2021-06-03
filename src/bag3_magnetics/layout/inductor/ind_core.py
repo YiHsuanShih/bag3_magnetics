@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from typing import List, Mapping, Any
+from typing import List, Mapping, Any, Union
 
 from bag.layout.template import TemplateDB
 from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.typing import PointType
 
-from pybag.enum import RoundMode, PathStyle
+from pybag.enum import RoundMode, PathStyle, Orientation
 
 from .util import IndTemplate, round_up
 
 
 class IndCore(IndTemplate):
-    """A inductor core template.
+    """An inductor core.
     """
 
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
@@ -22,6 +22,7 @@ class IndCore(IndTemplate):
         self._lead_coord = None
         self._center_tap_coord = None
         self._tot_dim = 0
+        self._opening = 0
 
     @property
     def path_coord(self) -> List[List[List[PointType]]]:
@@ -38,6 +39,10 @@ class IndCore(IndTemplate):
     @property
     def tot_dim(self) -> int:
         return self._tot_dim
+
+    @property
+    def opening(self) -> int:
+        return self._opening
 
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
@@ -58,6 +63,7 @@ class IndCore(IndTemplate):
             spacing='inductor turn space',
             width='inductor width',
             opening='inductor opening',
+            orient='orientation of inductor',
             via_width='inductor via width at bridges',
             min_width='minimum width because of CV via',
             min_spacing='minmum spacing between turns',
@@ -66,6 +72,7 @@ class IndCore(IndTemplate):
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
+            orient=Orientation.R0,
             n_side=8,
         )
 
@@ -77,6 +84,9 @@ class IndCore(IndTemplate):
         spacing: int = self.params['spacing']
         width: int = self.params['width']
         opening: int = self.params['opening']
+        orient: Union[str, Orientation] = self.params['orient']
+        if isinstance(orient, str):
+            orient = Orientation[orient]
         via_width: int = self.params['via_width']
         min_width: int = self.params['min_width']
         min_spacing: int = self.params['min_spacing']
@@ -87,7 +97,10 @@ class IndCore(IndTemplate):
 
         # get opening on tracks
         track_op = self.grid.dim_to_num_tracks(layid, (opening + width) // 2, round_mode=RoundMode.GREATER_EQ)
-        opening = self.grid.track_to_coord(layid, track_op) * 2
+        track = self.grid.dim_to_num_tracks(layid, width, round_mode=RoundMode.GREATER_EQ)
+        tr_w = self.grid.get_wire_total_width(layid, track.dbl_value)
+        opening = self.grid.track_to_coord(layid, track_op) * 2 - tr_w + width
+        self._opening = opening
 
         # ***** 1st check *******
         if width < min_width:
@@ -107,7 +120,7 @@ class IndCore(IndTemplate):
         center_tap_coord = None
         for turn in range(n_turn):
             path, lead, top, bot, via, center_tap = self._draw_ind_turn(n_turn, radius, n_side, width, spacing, opening,
-                                                                        ind_layid, bdg_layid, via_width, turn)
+                                                                        orient, ind_layid, bdg_layid, via_width, turn)
             path_coord.append(path)
             # get to coord list for bridges
             if turn == 0:
