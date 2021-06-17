@@ -172,10 +172,6 @@ class IndCore(IndTemplate):
         tot_bbox = BBox(0, 0, tot_dim, tot_dim)
         self.set_size_from_bound_box(ind_layid, tot_bbox, round_up=True)
 
-        # add inductor ID layer
-        id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
-        self.add_rect(id_lp, tot_bbox)
-
         # set properties
         self._path_coord = path_coord
         self._lead_coord = lead_coord

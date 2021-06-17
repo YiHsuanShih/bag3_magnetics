@@ -270,6 +270,10 @@ class IndWrap(IndTemplate):
         # set array_box
         self.set_size_from_bound_box(layid, BBox(0, 0, tot_dim + offset_ring_x, tot_dim + offset_ring_y), round_up=True)
 
+        # add inductor ID layer
+        id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
+        self.add_rect(id_lp, BBox(offset_ring_x, offset_ring_y, tot_dim + offset_ring_x, tot_dim + offset_ring_y))
+
         # Step 8: get schematic parameters
         self.sch_params = dict(
             res1_l=res1_l,
