@@ -7,6 +7,7 @@ from bag.util.immutable import Param
 from bag.design.module import Module
 
 from pybag.enum import Orient2D
+from pybag.core import Transform
 
 from .ind_diff import IndDiff
 from ...schematic.ind_diff_wrap import bag3_magnetics__ind_diff_wrap
@@ -67,14 +68,18 @@ class IndDiffWrap(TemplateBase):
         core_master: IndDiff = self.new_template(IndDiff, params=dict(n_turn=n_turn, lay_id=lay_id, radius=radius,
                                                                       width=width, spacing=spacing, port_xl=port_xl,
                                                                       port_xr=port_xr, tr_manager=tr_manager))
+        core_actual_bbox = core_master.actual_bbox
+        actual_bbox = BBox(core_actual_bbox.xl, min(core_actual_bbox.yl, core_master.lead_lower),
+                           core_actual_bbox.xh, max(core_actual_bbox.yh, core_master.lead_upper))
 
-        core = self.add_instance(core_master, inst_name='XDIFF')
+        xform = Transform(dy=-actual_bbox.yl)
+        core = self.add_instance(core_master, inst_name='XDIFF', xform=xform)
         for pin_name in ('plus0', 'minus0', 'plus1', 'minus1'):
             self.reexport(core.get_port(pin_name))
 
         # set size
-        self._actual_bbox = core_master.actual_bbox
-        self.set_size_from_bound_box(lay_id, BBox(0, 0, self._actual_bbox.xh, self._actual_bbox.yh), round_up=True)
+        self.set_size_from_bound_box(lay_id, BBox(0, 0, actual_bbox.xh,
+                                                  actual_bbox.yh - actual_bbox.yl), round_up=True, half_blk_x=False)
 
         # TODO: guard ring
 
@@ -82,6 +87,6 @@ class IndDiffWrap(TemplateBase):
 
         # add inductor ID layer
         id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
-        self.add_rect(id_lp, self._actual_bbox)
+        self.add_rect(id_lp, actual_bbox.transform(xform))
 
         self.sch_params = core_master.sch_params

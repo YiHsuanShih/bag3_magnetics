@@ -16,11 +16,22 @@ class IndDiff(TemplateBase):
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
         TemplateBase.__init__(self, temp_db, params, **kwargs)
         self._actual_bbox: BBox = BBox(0, 0, 0, 0)
+        self._lead_lower = 0
+        self._lead_upper = 0
 
     @property
     def actual_bbox(self) -> BBox:
         # actual BBox may extend outside first quadrant
         return self._actual_bbox
+
+    @property
+    def lead_lower(self) -> int:
+        # bottom lead may extend beyond first quadrant
+        return self._lead_lower
+
+    @property
+    def lead_upper(self) -> int:
+        return self._lead_upper
 
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
@@ -111,6 +122,8 @@ class IndDiff(TemplateBase):
         self.add_pin('minus1', minus1_ext)
 
         # set size
+        self._lead_lower = lower
+        self._lead_upper = upper
         self._actual_bbox = actual_bbox
         self.set_size_from_bound_box(lay_id, BBox(0, 0, self._actual_bbox.xh, self._actual_bbox.yh), round_up=True)
 
