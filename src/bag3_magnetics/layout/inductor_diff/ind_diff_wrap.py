@@ -56,12 +56,18 @@ class IndDiffWrap(TemplateBase):
         self._tr_manager = tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
 
         # check feasibility
-        assert radius + width // 2 >= (2 * n_turn + 1) * (width + spacing), 'Inductor is infeasible.'
+        outer_radius = radius + width // 2
+        assert outer_radius >= (2 * n_turn + 1) * (width + spacing), 'Inductor is infeasible.'
+
+        w_pitch = self.grid.get_size_pitch(lay_id)[0]
+        w_pitch2 = w_pitch // 2
+        outer_radius = -(- outer_radius // w_pitch2) * w_pitch2
+        radius = outer_radius - width // 2
 
         port_lay_id = lay_id - 1
         if self.grid.get_direction(port_lay_id) != Orient2D.y:
             raise ValueError(f'This generator expects port_layer={port_lay_id} to be vertical.')
-        _, locs = tr_manager.place_wires(port_lay_id, ['sig_hs', 'sig_hs'], center_coord=radius + width // 2)
+        _, locs = tr_manager.place_wires(port_lay_id, ['sig_hs', 'sig_hs', 'sig_hs'], center_coord=radius + width // 2)
         port_xl = self.grid.track_to_coord(port_lay_id, locs[0])
         port_xr = self.grid.track_to_coord(port_lay_id, locs[-1])
 
@@ -79,7 +85,7 @@ class IndDiffWrap(TemplateBase):
 
         # set size
         self.set_size_from_bound_box(lay_id, BBox(0, 0, actual_bbox.xh,
-                                                  actual_bbox.yh - actual_bbox.yl), round_up=True, half_blk_x=False)
+                                                  actual_bbox.yh - actual_bbox.yl), round_up=True)
 
         # TODO: guard ring
 
