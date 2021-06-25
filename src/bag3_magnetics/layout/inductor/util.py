@@ -606,7 +606,7 @@ class IndTemplate(TemplateBase):
         if orient in (Orientation.R0, Orientation.MY) and ind_layid % 2 == 1 or \
                 orient is Orientation.R270 and ind_layid % 2 == 0:
             # get track width
-            track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.GREATER_EQ)
+            track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.LESS_EQ)
             # get track index
             term0_idx = self.grid.coord_to_track(ind_layid, lead_coord[0][1], RoundMode.NEAREST)
             term1_idx = self.grid.coord_to_track(ind_layid, lead_coord[1][1], RoundMode.NEAREST)
@@ -646,7 +646,7 @@ class IndTemplate(TemplateBase):
         elif orient in (Orientation.R180, Orientation.MX) and ind_layid % 2 == 1 or \
                 orient is Orientation.R90 and ind_layid % 2 == 0:
             # get track width
-            track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.GREATER_EQ)
+            track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.LESS_EQ)
             # get track index
             term0_idx = self.grid.coord_to_track(ind_layid, lead_coord[0][0], RoundMode.NEAREST)
             term1_idx = self.grid.coord_to_track(ind_layid, lead_coord[1][0], RoundMode.NEAREST)
@@ -681,7 +681,7 @@ class IndTemplate(TemplateBase):
         elif orient is Orientation.R90 and ind_layid % 2 == 1 or \
                 orient in (Orientation.R180, Orientation.MX) and ind_layid % 2 == 0:
             # get track width
-            track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.GREATER_EQ)
+            track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.NEAREST)
             # get track index
             term0_idx = self.grid.coord_to_track(ind_layid - 1, lead_coord[0][0], RoundMode.NEAREST)
             term1_idx = self.grid.coord_to_track(ind_layid - 1, lead_coord[1][0], RoundMode.NEAREST)
@@ -736,7 +736,7 @@ class IndTemplate(TemplateBase):
         elif orient is Orientation.R270 and ind_layid % 2 == 1 or \
                 orient in (Orientation.R0, Orientation.MY) and ind_layid % 2 == 0:
             # get track width
-            track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.GREATER_EQ)
+            track = self.grid.dim_to_num_tracks(ind_layid - 1, width, round_mode=RoundMode.NEAREST)
             # get track index
             term0_idx = self.grid.coord_to_track(ind_layid - 1, lead_coord[0][0], RoundMode.NEAREST)
             term1_idx = self.grid.coord_to_track(ind_layid - 1, lead_coord[1][0], RoundMode.NEAREST)

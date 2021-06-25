@@ -96,10 +96,11 @@ class IndCore(IndTemplate):
         bdg_layid = layid - 1
 
         # get opening on tracks
-        track_op = self.grid.dim_to_num_tracks(layid, (opening + width) // 2, round_mode=RoundMode.GREATER_EQ)
-        track = self.grid.dim_to_num_tracks(layid, width, round_mode=RoundMode.GREATER_EQ)
+        track = self.grid.dim_to_num_tracks(ind_layid, width, round_mode=RoundMode.LESS_EQ)
         tr_w = self.grid.get_wire_total_width(layid, track.dbl_value)
-        opening = self.grid.track_to_coord(layid, track_op) * 2 - tr_w + width
+        _pitch = self.grid.get_track_pitch(ind_layid)
+        num_pitch = -(- (opening + tr_w) // _pitch)
+        opening = _pitch * num_pitch - tr_w + width
         self._opening = opening
 
         # ***** 1st check *******
