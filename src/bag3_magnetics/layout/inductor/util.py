@@ -762,10 +762,9 @@ class IndTemplate(TemplateBase):
             term_res_w = term0_bbox.w
 
             # add (ind_layid - 1) wire
-            wire_upper = term0_bbox.yl + lead_len
-            term0 = self.add_wires(ind_layid - 1, term0_idx, lower=wire_upper - pin_len, upper=wire_upper,
+            term0 = self.add_wires(ind_layid - 1, term0_idx, lower=term_lower_coord, upper=term_lower_coord + pin_len,
                                    width=track.dbl_value)
-            term1 = self.add_wires(ind_layid - 1, term1_idx, lower=wire_upper - pin_len, upper=wire_upper,
+            term1 = self.add_wires(ind_layid - 1, term1_idx, lower=term_lower_coord, upper=term_lower_coord + pin_len,
                                    width=track.dbl_value)
 
             # add via to (ind_layid - 1) wire

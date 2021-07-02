@@ -74,7 +74,7 @@ class IndRing(IndTemplate):
     def draw_layout(self):
         core_dim: int = self.params['core_dim']
         core_opening: int = self.params['core_opening']
-        core_width: int = self.params['core_width']
+        # core_width: int = self.params['core_width']
         ring_spacing: int = self.params['ring_spacing']
         ring_width: int = self.params['ring_width']
         ring_gap: int = self.params['ring_gap']
@@ -99,16 +99,33 @@ class IndRing(IndTemplate):
 
         # connect ring to VSS
         self._outer_path_coord = ring_arr[-1][-1]
-        #  2-----1
-        #  |     |
-        #  3-4 5-0
-        # VSS label has to be put at the corner, otherwise EMX errors
-        vss_path = self._outer_path_coord[-1]
-        ym = vss_path[0][1]
-        vss_bbox = BBox(vss_path[1][0] + core_width // 2 - pin_len, ym - ring_width // 2,
-                        vss_path[1][0] + core_width // 2, ym - ring_width // 2 + pin_len)
+        #  2-----1      2-----1
+        #  |     |      3     |
+        #  |     |            |
+        #  |     |      4     |
+        #  3-4 5-0      5-----0
+        if orient is Orientation.R0:
+            vss_path = self._outer_path_coord[1]
+            ym = vss_path[0][1]
+            xl = vss_path[1][0]
+            xh = vss_path[0][0]
+            vss_bbox = BBox(xl - ring_width // 2, ym - ring_width // 2,
+                            xh + ring_width // 2, ym + ring_width // 2)
+            vss_bbox1 = BBox(xl - ring_width // 2, ym - ring_width // 2,
+                             xh + ring_width // 2, ym + ring_width // 2 - 4)
+        else:
+            vss_path = self._outer_path_coord[0]
+            xm = vss_path[0][0]
+            yl = vss_path[0][1]
+            yh = vss_path[1][1]
+            vss_bbox = BBox(xm - ring_width // 2, yl - ring_width // 2,
+                            xm + ring_width // 2, yh + ring_width // 2)
+            vss_bbox1 = BBox(xm - ring_width // 2, yl - ring_width // 2,
+                             xm + ring_width // 2 - 4, yh + ring_width // 2)
         lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
-        self.add_pin_primitive('VSS', lp[0], vss_bbox)
+        self.add_pin_primitive('VSS', lp[0], vss_bbox, hide=True)
+        # TODO: hack: VSS pin on top layer should have off-center label, otherwise EMX errors
+        self.add_pin_primitive('VSS1', lp[0], vss_bbox1, label='VSS', show=False)
 
         # set properties
         self._tot_dim = tot_dim = ring_lenarr[-1] + ring_width // 2

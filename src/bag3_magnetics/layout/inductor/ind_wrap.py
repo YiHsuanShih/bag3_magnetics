@@ -241,6 +241,7 @@ class IndWrap(IndTemplate):
                 ring_path_coord.append(path_n)
             ring_inst = self.add_instance(ring_master, inst_name='XRING', xform=xform_ring)
             self.reexport(ring_inst.get_port('VSS'))
+            self.reexport(ring_inst.get_port('VSS1'))
         else:
             ring_path_coord = None
 
