@@ -52,6 +52,7 @@ class IndSPMeas(MeasurementManager):
             _name = f'PORT{idx}'
             ports.append(_name)
             load_list.append(dict(conns=_conns, type='port', value={'r': 50}, name=_name))
+        num_port = len(ports)
 
         sim_envs: Sequence[str] = self.specs['sim_envs']
         assert len(sim_envs) == 1, 'This measurement supports only one sim_env at a time.'
@@ -59,15 +60,19 @@ class IndSPMeas(MeasurementManager):
             **self.specs['tbm_specs'],
             load_list=load_list,
             sim_envs=self.specs['sim_envs'],
-            param_type='Z',
+            param_type='YZ',
             ports=ports,
+            sp_options=dict(
+                file=f'meas.s{num_port}p',
+                datafmt='touchstone',
+            )
         )
         tbm = cast(SPTB, self.make_tbm(SPTB, tbm_specs))
         sim_results = await sim_db.async_simulate_tbm_obj(name, sim_dir, dut, tbm, {})
         data = sim_results.data
 
         query_freq: float = self.specs['query_freq']
-        return estimate_ind(data, query_freq, len(ports))
+        return estimate_ind(data, query_freq, num_port)
 
 
 def estimate_ind(data: SimData, query_freq: float, num_port: int) -> Mapping[str, float]:
