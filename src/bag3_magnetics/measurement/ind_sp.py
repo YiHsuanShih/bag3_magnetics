@@ -81,6 +81,8 @@ def estimate_ind(data: SimData, query_freq: float, num_port: int) -> Mapping[str
 
     z11 = np.squeeze(data['z11'])
     l0 = z11.imag / w_arr
+    if w_arr[0] == 0:
+        l0[0] = l0[1]
     q0 = z11.imag / z11.real
 
     # query
@@ -128,6 +130,10 @@ def estimate_ind(data: SimData, query_freq: float, num_port: int) -> Mapping[str
         q1 = z22.imag / z22.real
         lm0 = z12.imag / w_arr
         lm1 = z21.imag / w_arr
+        if w_arr[0] == 0:
+            l1[0] = l1[1]
+            lm0[0] = lm0[1]
+            lm1[0] = lm1[1]
         assert np.isclose(lm0, lm1).all()
 
         print(f'Inductance 1: {l1[freq_idx] * 1e12} pH with Q = {q1[freq_idx]}')
