@@ -6,7 +6,7 @@ from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.typing import PointType
 
-from pybag.enum import Orientation
+from pybag.enum import Orientation, RoundMode, Direction, PinMode
 
 from .util import IndTemplate
 
@@ -63,12 +63,14 @@ class IndRing(IndTemplate):
             layid='inductor layer id',
             orient='orientation of inductor',
             pin_len='pin length',
+            pin_tr_w='pin track width',
         )
 
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
             orient=Orientation.R0,
+            pin_tr_w=1,
         )
 
     def draw_layout(self):
@@ -87,6 +89,7 @@ class IndRing(IndTemplate):
         if isinstance(orient, str):
             orient = Orientation[orient]
         pin_len: int = self.params['pin_len']
+        pin_tr_w: int = self.params['pin_tr_w']
 
         self._opening = ring_opening = 3 * core_opening
 
@@ -104,6 +107,7 @@ class IndRing(IndTemplate):
         #  |     |            |
         #  |     |      4     |
         #  3-4 5-0      5-----0
+        lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
         if orient is Orientation.R0:
             vss_path = self._outer_path_coord[1]
             ym = vss_path[0][1]
@@ -113,19 +117,25 @@ class IndRing(IndTemplate):
                             xh + ring_width // 2, ym + ring_width // 2)
             vss_bbox1 = BBox(xl - ring_width // 2, ym - ring_width // 2,
                              xh + ring_width // 2, ym + ring_width // 2 - 4)
+            self.add_pin_primitive('VSS', lp[0], vss_bbox, hide=True)
+            # TODO: hack: VSS pin on top layer should have off-center label, otherwise EMX errors
+            self.add_pin_primitive('VSS1', lp[0], vss_bbox1, label='VSS', show=False)
         else:
-            vss_path = self._outer_path_coord[0]
-            xm = vss_path[0][0]
-            yl = vss_path[0][1]
-            yh = vss_path[1][1]
-            vss_bbox = BBox(xm - ring_width // 2, yl - ring_width // 2,
-                            xm + ring_width // 2, yh + ring_width // 2)
-            vss_bbox1 = BBox(xm - ring_width // 2, yl - ring_width // 2,
-                             xm + ring_width // 2 - 4, yh + ring_width // 2)
-        lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1])[0]
-        self.add_pin_primitive('VSS', lp[0], vss_bbox, hide=True)
-        # TODO: hack: VSS pin on top layer should have off-center label, otherwise EMX errors
-        self.add_pin_primitive('VSS1', lp[0], vss_bbox1, label='VSS', show=False)
+            # --- complete guard ring on (ind_layid - 1) --- #
+            top_path = self._outer_path_coord[2]
+            bot_path = self._outer_path_coord[3]
+            # get track index
+            warr_tidx = self.grid.coord_to_track(layid - 1, top_path[0][0], RoundMode.NEAREST)
+            warr = self.add_wires(layid - 1, warr_tidx, bot_path[0][1], top_path[1][1], width=pin_tr_w)
+
+            top_bbox = BBox(top_path[0][0] - ring_width // 2, top_path[1][1] - ring_width // 2,
+                            top_path[0][0] + ring_width // 2, top_path[0][1] + ring_width // 2)
+            self.connect_bbox_to_track_wires(Direction.UPPER, lp, top_bbox, warr)
+
+            bot_bbox = BBox(bot_path[0][0] - ring_width // 2, bot_path[1][1] - ring_width // 2,
+                            bot_path[0][0] + ring_width // 2, bot_path[0][1] + ring_width // 2)
+            self.connect_bbox_to_track_wires(Direction.UPPER, lp, bot_bbox, warr)
+            self.add_pin('VSS', warr, mode=PinMode.MIDDLE)
 
         # set properties
         self._tot_dim = tot_dim = ring_lenarr[-1] + ring_width // 2

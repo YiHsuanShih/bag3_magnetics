@@ -72,6 +72,7 @@ class IndWrap(IndTemplate):
             res1_l='length of metal resistor connecting to P1',
             res2_l='length of metal resistor connecting to P2',
             pin_len='pin length',
+            pin_tr_w='pin track width',
             res_space='metal resistor space to pin',
             orient='orientation of inductor',
             short_terms='True to make shorted terminals',
@@ -91,6 +92,7 @@ class IndWrap(IndTemplate):
             center_tap_specs=None,
             w_fill=False,
             fill_specs=None,
+            pin_tr_w=1,
         )
 
     def draw_layout(self):
@@ -122,6 +124,7 @@ class IndWrap(IndTemplate):
         res1_l: int = self.params['res1_l']
         res2_l: int = self.params['res2_l']
         pin_len: int = self.params['pin_len']
+        pin_tr_w: int = self.params['pin_tr_w']
         res_space: int = self.params['res_space']
         orient: Union[str, Orientation] = self.params['orient']
         if isinstance(orient, str):
@@ -163,6 +166,7 @@ class IndWrap(IndTemplate):
                 layid=layid,
                 orient=orient,
                 pin_len=pin_len,
+                pin_tr_w=pin_tr_w,
             )
             ring_master: IndRing = self.new_template(IndRing, params=ring_params)
 
@@ -241,7 +245,8 @@ class IndWrap(IndTemplate):
                 ring_path_coord.append(path_n)
             ring_inst = self.add_instance(ring_master, inst_name='XRING', xform=xform_ring)
             self.reexport(ring_inst.get_port('VSS'))
-            self.reexport(ring_inst.get_port('VSS1'))
+            if orient is Orientation.R0:
+                self.reexport(ring_inst.get_port('VSS1'))
         else:
             ring_path_coord = None
 
