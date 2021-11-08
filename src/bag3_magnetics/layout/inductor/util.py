@@ -892,6 +892,8 @@ class IndTemplate(TemplateBase):
         fill_w: int = fill_specs['fill_w']
         fill_sp: int = fill_specs['fill_sp']
         lp = self.grid.tech_info.get_lay_purp_list(ind_layid)[0]
+        inside_ring: bool = fill_specs['inside_ring']
+        outside_ring: bool = fill_specs['outside_ring']
         if n_side == 8:
             #          R0                     R270
             #       4------3                4------3
@@ -903,96 +905,98 @@ class IndTemplate(TemplateBase):
             #       7-8  9-0                9------0
 
             # Step 1: draw inside ring
-            path_in = path_coord[-1]
-            coord = [path[0] for path in path_in]
+            if inside_ring:
+                path_in = path_coord[-1]
+                coord = [path[0] for path in path_in]
 
-            bbox_in = BBox(coord[5][0] + width // 2 + fill_sp, coord[0][1] + width // 2 + fill_sp,
-                           coord[1][0] - width // 2 - fill_sp, coord[3][1] - width // 2 - fill_sp)
-            bbox_in2 = BBox(coord[4][0] + width // 2, coord[1][1] + width // 2,
-                            coord[3][0] - width // 2, coord[5][1] - width // 2)
+                bbox_in = BBox(coord[5][0] + width // 2 + fill_sp, coord[0][1] + width // 2 + fill_sp,
+                               coord[1][0] - width // 2 - fill_sp, coord[3][1] - width // 2 - fill_sp)
+                bbox_in2 = BBox(coord[4][0] + width // 2, coord[1][1] + width // 2,
+                                coord[3][0] - width // 2, coord[5][1] - width // 2)
 
-            tot_num = (bbox_in.w + fill_sp) // (fill_w + fill_sp)
-            tot_len = tot_num * (fill_w + fill_sp) - fill_sp
-            xl = bbox_in.xl + (bbox_in.w - tot_len) // 2
-            yl = bbox_in.yl + (bbox_in.w - tot_len) // 2
-            for idx in range(tot_num):
-                for jdx in range(tot_num):
-                    _xl = xl + idx * (fill_w + fill_sp)
-                    _yl = yl + jdx * (fill_w + fill_sp)
-                    if _xl + _yl < bbox_in.xl + bbox_in2.yl:
-                        # lower left
-                        continue
-                    elif _yl + fill_w - _xl > bbox_in2.yh - bbox_in.xl:
-                        # upper left
-                        continue
-                    elif _yl - _xl - fill_w < bbox_in2.yl - bbox_in.xh:
-                        # lower right
-                        continue
-                    elif _xl + _yl + 2 * fill_w > bbox_in.xh + bbox_in2.yh:
-                        # upper right
-                        continue
-                    self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                tot_num = (bbox_in.w + fill_sp) // (fill_w + fill_sp)
+                tot_len = tot_num * (fill_w + fill_sp) - fill_sp
+                xl = bbox_in.xl + (bbox_in.w - tot_len) // 2
+                yl = bbox_in.yl + (bbox_in.w - tot_len) // 2
+                for idx in range(tot_num):
+                    for jdx in range(tot_num):
+                        _xl = xl + idx * (fill_w + fill_sp)
+                        _yl = yl + jdx * (fill_w + fill_sp)
+                        if _xl + _yl < bbox_in.xl + bbox_in2.yl:
+                            # lower left
+                            continue
+                        elif _yl + fill_w - _xl > bbox_in2.yh - bbox_in.xl:
+                            # upper left
+                            continue
+                        elif _yl - _xl - fill_w < bbox_in2.yl - bbox_in.xh:
+                            # lower right
+                            continue
+                        elif _xl + _yl + 2 * fill_w > bbox_in.xh + bbox_in2.yh:
+                            # upper right
+                            continue
+                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
 
             # Step 2: draw outside ring
-            path_out = path_coord[0]
-            coord = [path[0] for path in path_out]
+            if outside_ring:
+                path_out = path_coord[0]
+                coord = [path[0] for path in path_out]
 
-            bbox_out2 = BBox(coord[4][0] - width // 2 - fill_sp, coord[1][1] - width // 2 - fill_sp,
-                             coord[3][0] + width // 2 + fill_sp, coord[5][1] + width // 2 + fill_sp)
-            bbox_out = BBox(coord[5][0] - width // 2, coord[0][1] - width // 2,
-                            coord[1][0] + width // 2, coord[3][1] + width // 2)
-            if ring_coord:
-                ring_in = ring_coord[-1]
-                rcoord = [path[0] for path in ring_in]
-                #    R0           R270
-                #  2-----1      2-----1
-                #  |     |      3     |
-                #  |     |            |
-                #  |     |      4     |
-                #  3-4 5-0      5-----0
-                rbbox = BBox(rcoord[2][0] + ring_width // 2 + fill_sp, rcoord[0][1] + ring_width // 2 + fill_sp,
-                             rcoord[0][0] - ring_width // 2 - fill_sp, rcoord[1][1] - ring_width // 2 - fill_sp)
-            else:
-                rbbox = bbox_out
+                bbox_out2 = BBox(coord[4][0] - width // 2 - fill_sp, coord[1][1] - width // 2 - fill_sp,
+                                 coord[3][0] + width // 2 + fill_sp, coord[5][1] + width // 2 + fill_sp)
+                bbox_out = BBox(coord[5][0] - width // 2, coord[0][1] - width // 2,
+                                coord[1][0] + width // 2, coord[3][1] + width // 2)
+                if ring_coord:
+                    ring_in = ring_coord[-1]
+                    rcoord = [path[0] for path in ring_in]
+                    #    R0           R270
+                    #  2-----1      2-----1
+                    #  |     |      3     |
+                    #  |     |            |
+                    #  |     |      4     |
+                    #  3-4 5-0      5-----0
+                    rbbox = BBox(rcoord[2][0] + ring_width // 2 + fill_sp, rcoord[0][1] + ring_width // 2 + fill_sp,
+                                 rcoord[0][0] - ring_width // 2 - fill_sp, rcoord[1][1] - ring_width // 2 - fill_sp)
+                else:
+                    rbbox = bbox_out
 
-            tot_num = (rbbox.w + fill_sp) // (fill_w + fill_sp)
-            tot_len = tot_num * (fill_w + fill_sp) - fill_sp
-            xl = rbbox.xl + (rbbox.w - tot_len) // 2
-            yl = rbbox.yl + (rbbox.w - tot_len) // 2
-            for idx in range(tot_num):
-                for jdx in range(tot_num):
-                    _xl = xl + idx * (fill_w + fill_sp)
-                    _yl = yl + jdx * (fill_w + fill_sp)
-                    if (orient is Orientation.R0 and bbox_out2.xl < _xl < bbox_out2.xh - fill_w and
-                        _yl + fill_w < bbox_out.yl - fill_sp) or \
-                            (orient is Orientation.R270 and _xl + fill_w < bbox_out.xl - fill_sp
-                             and bbox_out2.yl < _yl < bbox_out2.yh - fill_w):
-                        # keep-out
-                        continue
-                    elif _xl + fill_w < bbox_out.xl - fill_sp:
-                        # left
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _xl > bbox_out.xh + fill_sp:
-                        # right
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _yl > bbox_out.yh + fill_sp:
-                        # top
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _yl + fill_w < bbox_out.yl - fill_sp:
-                        # bottom
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _xl + _yl + 2 * fill_w < bbox_out.xl + bbox_out2.yl:
-                        # lower left
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _yl - _xl - fill_w > bbox_out2.yh - bbox_out.xl:
-                        # upper left
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _yl + fill_w - _xl < bbox_out2.yl - bbox_out.xh:
-                        # lower right
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
-                    elif _xl + _yl > bbox_out.xh + bbox_out2.yh:
-                        # upper right
-                        self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                tot_num = (rbbox.w + fill_sp) // (fill_w + fill_sp)
+                tot_len = tot_num * (fill_w + fill_sp) - fill_sp
+                xl = rbbox.xl + (rbbox.w - tot_len) // 2
+                yl = rbbox.yl + (rbbox.w - tot_len) // 2
+                for idx in range(tot_num):
+                    for jdx in range(tot_num):
+                        _xl = xl + idx * (fill_w + fill_sp)
+                        _yl = yl + jdx * (fill_w + fill_sp)
+                        if (orient is Orientation.R0 and bbox_out2.xl < _xl < bbox_out2.xh - fill_w and
+                            _yl + fill_w < bbox_out.yl - fill_sp) or \
+                                (orient is Orientation.R270 and _xl + fill_w < bbox_out.xl - fill_sp
+                                 and bbox_out2.yl < _yl < bbox_out2.yh - fill_w):
+                            # keep-out
+                            continue
+                        elif _xl + fill_w < bbox_out.xl - fill_sp:
+                            # left
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _xl > bbox_out.xh + fill_sp:
+                            # right
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _yl > bbox_out.yh + fill_sp:
+                            # top
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _yl + fill_w < bbox_out.yl - fill_sp:
+                            # bottom
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _xl + _yl + 2 * fill_w < bbox_out.xl + bbox_out2.yl:
+                            # lower left
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _yl - _xl - fill_w > bbox_out2.yh - bbox_out.xl:
+                            # upper left
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _yl + fill_w - _xl < bbox_out2.yl - bbox_out.xh:
+                            # lower right
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
+                        elif _xl + _yl > bbox_out.xh + bbox_out2.yh:
+                            # upper right
+                            self.add_rect(lp, BBox(_xl, _yl, _xl + fill_w, _yl + fill_w))
         else:
             raise NotImplementedError(f'n_side={n_side} not supported yet.')
 

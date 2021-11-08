@@ -244,10 +244,12 @@ class IndWrap(IndTemplate):
                     path_n.append(coord_n)
                 ring_path_coord.append(path_n)
             ring_inst = self.add_instance(ring_master, inst_name='XRING', xform=xform_ring)
-            self.reexport(ring_inst.get_port('VSS'))
+            ring_sup: str = ring_specs.get('ring_sup', 'VSS')
+            self.reexport(ring_inst.get_port(ring_sup))
             if orient is Orientation.R0:
-                self.reexport(ring_inst.get_port('VSS1'))
+                self.reexport(ring_inst.get_port(f'{ring_sup}1'))
         else:
+            ring_sup = ''
             ring_path_coord = None
 
         # draw leads
@@ -289,4 +291,5 @@ class IndWrap(IndTemplate):
             res_layer=layid,
             center_tap=center_tap,
             w_ring=w_ring,
+            ring_sup=ring_sup,
         )

@@ -6,7 +6,7 @@ from bag.layout.routing.base import WDictType, SpDictType, TrackManager
 from bag.util.immutable import Param
 from bag.design.module import Module
 
-from pybag.enum import Orient2D
+from pybag.enum import Orient2D, PathStyle
 from pybag.core import Transform
 
 from .ind_diff import IndDiff
@@ -41,6 +41,8 @@ class IndDiffWrap(TemplateBase):
             radius='Outermost radius',
             width='Width of inductor sides',
             spacing='Spacing between inductor turns',
+            ring_width='Width of guard ring',
+            ring_spacing='Spacing outer inductor turn and guard ring',
             tr_widths='Track widths dictionary',
             tr_spaces='Track spaces dictionary',
         )
@@ -51,6 +53,8 @@ class IndDiffWrap(TemplateBase):
         radius: int = self.params['radius']
         width: int = self.params['width']
         spacing: int = self.params['spacing']
+        ring_width: int = self.params['ring_width']
+        ring_spacing: int = self.params['ring_spacing']
         tr_widths: WDictType = self.params['tr_widths']
         tr_spaces: SpDictType = self.params['tr_spaces']
         self._tr_manager = tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
@@ -58,16 +62,19 @@ class IndDiffWrap(TemplateBase):
         # check feasibility
         outer_radius = radius + width // 2
         assert outer_radius >= (2 * n_turn + 1) * (width + spacing), 'Inductor is infeasible.'
+        outer_radius += ring_spacing + ring_width
 
-        w_pitch = self.grid.get_size_pitch(lay_id)[0]
+        w_pitch, h_pitch = self.grid.get_size_pitch(lay_id)
         w_pitch2 = w_pitch // 2
         outer_radius = -(- outer_radius // w_pitch2) * w_pitch2
-        radius = outer_radius - width // 2
+        radius = outer_radius - (ring_spacing + ring_width) - width // 2
+
+        tot_h = -(- 2 * outer_radius // h_pitch) * h_pitch
 
         port_lay_id = lay_id - 1
         if self.grid.get_direction(port_lay_id) != Orient2D.y:
             raise ValueError(f'This generator expects port_layer={port_lay_id} to be vertical.')
-        _, locs = tr_manager.place_wires(port_lay_id, ['sig_hs', 'sup', 'sig_hs'], center_coord=radius + width // 2)
+        _, locs = tr_manager.place_wires(port_lay_id, ['sig_hs', 'sup', 'sig_hs'], center_coord=outer_radius)
         port_xl = self.grid.track_to_coord(port_lay_id, locs[0])
         port_xr = self.grid.track_to_coord(port_lay_id, locs[-1])
 
@@ -78,21 +85,30 @@ class IndDiffWrap(TemplateBase):
         actual_bbox = BBox(core_actual_bbox.xl, min(core_actual_bbox.yl, core_master.lead_lower),
                            core_actual_bbox.xh, max(core_actual_bbox.yh, core_master.lead_upper))
 
-        xform = Transform(dy=-actual_bbox.yl)
+        xform = Transform(dy=(tot_h - actual_bbox.h) // 2 - actual_bbox.yl)
         core = self.add_instance(core_master, inst_name='XDIFF', xform=xform)
         for pin_name in ('plus0', 'minus0', 'plus1', 'minus1'):
             self.reexport(core.get_port(pin_name))
 
-        # set size
-        self.set_size_from_bound_box(lay_id, BBox(0, 0, actual_bbox.xh,
-                                                  actual_bbox.yh - actual_bbox.yl), round_up=True)
-
         # TODO: guard ring
+        lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
+        off_y = (tot_h - 2 * outer_radius) // 2
+        ring_bbox = BBox(0, off_y, 2 * outer_radius, tot_h - off_y)
+        rw2 = ring_width // 2
+        coords = [(ring_bbox.xl + rw2, ring_bbox.yl + rw2), (ring_bbox.xh - rw2, ring_bbox.yl + rw2),
+                  (ring_bbox.xh - rw2, ring_bbox.yh - rw2), (ring_bbox.xl + rw2, ring_bbox.yh - rw2),
+                  (ring_bbox.xl + rw2, ring_bbox.yl + rw2)]
+        for idx in range(4):
+            self.add_path(lp, ring_width, [coords[idx], coords[idx + 1]], PathStyle.extend)
+
+        # set size
+        tot_bbox = BBox(0, 0, 2 * outer_radius, tot_h)
+        self.set_size_from_bound_box(lay_id, tot_bbox, round_up=True)
 
         # TODO: draw fill
 
         # add inductor ID layer
         id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
-        self.add_rect(id_lp, actual_bbox.transform(xform))
+        self.add_rect(id_lp, ring_bbox)
 
         self.sch_params = core_master.sch_params

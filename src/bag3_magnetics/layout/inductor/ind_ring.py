@@ -60,6 +60,7 @@ class IndRing(IndTemplate):
             ring_laylist='ring layer list',
             ring_conn_n='ring connection numbers',
             ring_conn_width='ring connection width',
+            ring_sup='supply name fpr ring; VSS by default',
             layid='inductor layer id',
             orient='orientation of inductor',
             pin_len='pin length',
@@ -71,6 +72,7 @@ class IndRing(IndTemplate):
         return dict(
             orient=Orientation.R0,
             pin_tr_w=1,
+            ring_sup='VSS',
         )
 
     def draw_layout(self):
@@ -84,6 +86,7 @@ class IndRing(IndTemplate):
         ring_laylist: List[int] = self.params['ring_laylist']
         ring_conn_n: int = self.params['ring_conn_n']
         ring_conn_width: int = self.params['ring_conn_width']
+        ring_sup: str = self.params['ring_sup']
         layid: int = self.params['layid']
         orient: Union[str, Orientation] = self.params['orient']
         if isinstance(orient, str):
@@ -117,9 +120,9 @@ class IndRing(IndTemplate):
                             xh + ring_width // 2, ym + ring_width // 2)
             vss_bbox1 = BBox(xl - ring_width // 2, ym - ring_width // 2,
                              xh + ring_width // 2, ym + ring_width // 2 - 4)
-            self.add_pin_primitive('VSS', lp[0], vss_bbox, hide=True)
+            self.add_pin_primitive(ring_sup, lp[0], vss_bbox, hide=True)
             # TODO: hack: VSS pin on top layer should have off-center label, otherwise EMX errors
-            self.add_pin_primitive('VSS1', lp[0], vss_bbox1, label='VSS', show=False)
+            self.add_pin_primitive(f'{ring_sup}1', lp[0], vss_bbox1, label=ring_sup, show=False)
         else:
             # --- complete guard ring on (ind_layid - 1) --- #
             top_path = self._outer_path_coord[2]
@@ -135,7 +138,7 @@ class IndRing(IndTemplate):
             bot_bbox = BBox(bot_path[0][0] - ring_width // 2, bot_path[1][1] - ring_width // 2,
                             bot_path[0][0] + ring_width // 2, bot_path[0][1] + ring_width // 2)
             self.connect_bbox_to_track_wires(Direction.UPPER, lp, bot_bbox, warr)
-            self.add_pin('VSS', warr, mode=PinMode.MIDDLE)
+            self.add_pin(ring_sup, warr, mode=PinMode.MIDDLE)
 
         # set properties
         self._tot_dim = tot_dim = ring_lenarr[-1] + ring_width // 2
