@@ -72,9 +72,8 @@ class IndWrap(IndTemplate):
             res1_l='length of metal resistor connecting to P1',
             res2_l='length of metal resistor connecting to P2',
             pin_len='pin length',
-            pin_tr_w='pin track width',
             res_space='metal resistor space to pin',
-            orient='orientation of inductor',
+            orient='orientation of inductor, allowed values are R0 and R270',
             short_terms='True to make shorted terminals',
 
             w_fill='True to have metal fill',
@@ -92,7 +91,6 @@ class IndWrap(IndTemplate):
             center_tap_specs=None,
             w_fill=False,
             fill_specs=None,
-            pin_tr_w=1,
         )
 
     def draw_layout(self):
@@ -124,11 +122,12 @@ class IndWrap(IndTemplate):
         res1_l: int = self.params['res1_l']
         res2_l: int = self.params['res2_l']
         pin_len: int = self.params['pin_len']
-        pin_tr_w: int = self.params['pin_tr_w']
         res_space: int = self.params['res_space']
         orient: Union[str, Orientation] = self.params['orient']
         if isinstance(orient, str):
             orient = Orientation[orient]
+        if orient not in (Orientation.R0, Orientation.R270):
+            raise ValueError(f'orient={orient} is not supported. Use "R0" or "R270"')
 
         w_fill: bool = self.params['w_fill']
         fill_specs: Optional[Mapping[str, Any]] = self.params['fill_specs']
@@ -165,8 +164,6 @@ class IndWrap(IndTemplate):
                 core_width=width,
                 layid=layid,
                 orient=orient,
-                pin_len=pin_len,
-                pin_tr_w=pin_tr_w,
             )
             ring_master: IndRing = self.new_template(IndRing, params=ring_params)
 
@@ -185,7 +182,7 @@ class IndWrap(IndTemplate):
         for coord in ind_master.lead_coord:
             ind_lead_coord.append((coord[0] + offset, coord[1] + offset))
 
-        if orient in (Orientation.R0, Orientation.MY) and layid % 2 == 1 or \
+        if orient is Orientation.R0 and layid % 2 == 1 or \
                 orient is Orientation.R270 and layid % 2 == 0:
             term0_idx = self.grid.coord_to_track(layid, ind_lead_coord[0][1], RoundMode.NEAREST)
             term1_idx = self.grid.coord_to_track(layid, ind_lead_coord[1][1], RoundMode.NEAREST)
@@ -195,7 +192,7 @@ class IndWrap(IndTemplate):
             offset_ring_x = 0
             offset_ring_y = offset2
         elif orient is Orientation.R270 and layid % 2 == 1 or \
-                orient in (Orientation.R0, Orientation.MY) and layid % 2 == 0:
+                orient is Orientation.R0 and layid % 2 == 0:
             term0_idx = self.grid.coord_to_track(layid - 1, ind_lead_coord[0][0], RoundMode.NEAREST)
             term1_idx = self.grid.coord_to_track(layid - 1, ind_lead_coord[1][0], RoundMode.NEAREST)
             term0_coord = self.grid.track_to_coord(layid - 1, term0_idx)
@@ -204,7 +201,7 @@ class IndWrap(IndTemplate):
             offset_ring_x = offset2
             offset_ring_y = 0
         else:
-            raise NotImplementedError('Not supported yet.')
+            raise NotImplementedError('Not possible.')
 
         # find overall Transform
         xform = Transform(dx=offset_ring_x + offset, dy=offset_ring_y + offset)
@@ -246,19 +243,18 @@ class IndWrap(IndTemplate):
             ring_inst = self.add_instance(ring_master, inst_name='XRING', xform=xform_ring)
             ring_sup: str = ring_specs.get('ring_sup', 'VSS')
             self.reexport(ring_inst.get_port(ring_sup))
-            if orient is Orientation.R0:
-                self.reexport(ring_inst.get_port(f'{ring_sup}1'))
         else:
             ring_sup = ''
             ring_path_coord = None
 
         # draw leads
-        term0, term1, term_res_w = self._draw_lead(layid, width, lead_len, ind_lead_coord, pin_len,
-                                                   res1_l, res2_l, res_space, ring_len, ring_width, orient)
+        term0, term1 = self._draw_lead(layid, width, lead_len, ind_lead_coord, pin_len, res1_l, res2_l, res_space,
+                                       orient)
         # add pins
-        self.add_pin('P1', term0)
-        self.add_pin('P2', term1)
-        if orient in (Orientation.MY, Orientation.R180, Orientation.R270):
+        lp = self.grid.tech_info.get_lay_purp_list(layid)[0]
+        self.add_pin_primitive('P1', lp[0], term0)
+        self.add_pin_primitive('P2', lp[0], term1)
+        if orient is Orientation.R270:
             res1_l, res2_l = res2_l, res1_l
 
         # draw center tap
@@ -267,7 +263,7 @@ class IndWrap(IndTemplate):
             tap_len: int = center_tap_specs['tap_len']
             tap = self._draw_center_tap(width, n_turn, tap_len, layid, pin_len, res3_l, res_space, ind_center_tap_coord,
                                         orient)
-            self.add_pin('PC', tap)
+            self.add_pin_primitive('PC', lp[0], tap)
         else:
             res3_l = 0
 
@@ -287,7 +283,7 @@ class IndWrap(IndTemplate):
             res1_l=res1_l,
             res2_l=res2_l,
             res3_l=res3_l,
-            res_w=term_res_w,
+            res_w=width,
             res_layer=layid,
             center_tap=center_tap,
             w_ring=w_ring,
