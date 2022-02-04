@@ -2,11 +2,10 @@ from typing import Mapping, Any, Sequence
 
 from bag.layout.template import TemplateBase, TemplateDB
 from bag.layout.util import BBox
-from bag.layout.routing.base import TrackManager, TrackID
 from bag.util.immutable import Param
 from bag.typing import PointType
 
-from pybag.enum import PathStyle, Orient2D, Direction, MinLenMode
+from pybag.enum import PathStyle
 
 
 class IndDiffCore(TemplateBase):
@@ -17,7 +16,7 @@ class IndDiffCore(TemplateBase):
 
     @property
     def actual_bbox(self) -> BBox:
-        # actual BBox may extend outside first quadrant
+        # actual BBox may extend because of grid quantization
         return self._actual_bbox
 
     @classmethod
@@ -28,9 +27,8 @@ class IndDiffCore(TemplateBase):
             radius='Outermost radius',
             width='Width of inductor sides',
             spacing='Spacing between inductor turns',
-            port_xl='x co-ordinate of left port',
-            port_xr='x co-ordinate of right port',
-            tr_manager='Track Manager',
+            lead_width='Width of inductor leads',
+            lead_spacing='Spacing between inductor leads',
         )
 
     def draw_layout(self) -> None:
@@ -39,16 +37,16 @@ class IndDiffCore(TemplateBase):
         radius: int = self.params['radius']
         width: int = self.params['width']
         spacing: int = self.params['spacing']
-        tr_manager: TrackManager = self.params['tr_manager']
+        lead_width: int = self.params['lead_width']
+        lead_spacing: int = self.params['lead_spacing']
 
         # check feasibility
-        assert radius + width // 2 >= (2 * n_turn + 1) * (width + spacing), 'Inductor is infeasible.'
+        outer_radius = radius + width // 2
+        assert outer_radius >= (2 * n_turn + 1) * (width + spacing), 'Inductor is infeasible.'
 
-        port_xl: int = self.params['port_xl']
-        port_xr: int = self.params['port_xr']
-        xm = (port_xl + port_xr) // 2
+        port_xl = outer_radius - (lead_width + lead_spacing) // 2
 
-        coords = get_coords(n_turn, radius, width, spacing, xm, port_xl)
+        coords = get_coords(n_turn, radius, width, spacing, port_xl)
         num_coords = len(coords)
 
         # draw paths
@@ -58,34 +56,32 @@ class IndDiffCore(TemplateBase):
 
         # draw leads
         port_lay_id = lay_id - 1
-        if self.grid.get_direction(port_lay_id) != Orient2D.y:
-            raise ValueError(f'This generator expects port_layer={port_lay_id} to be vertical.')
-        w_port = tr_manager.get_width(port_lay_id, 'sig_hs')
-        w_min = self.grid.get_min_track_width(port_lay_id, top_ntr=1)
-        assert w_port >= w_min, f'w_port={w_port} must be at least {w_min} on layer={port_lay_id} in track manager.'
-        port_idx = self.grid.coord_to_track(port_lay_id, port_xl)
-        port_tid = TrackID(port_lay_id, port_idx, w_port)
+        port_dir = self.grid.get_direction(port_lay_id)
+        lp_lead = self.grid.tech_info.get_lay_purp_list(port_lay_id)[0]
 
         term0_coord = coords[0]
-        term0_bbox = BBox(term0_coord[0] - width // 2, term0_coord[1] - width // 2,
-                          term0_coord[0] + width // 2, term0_coord[1] + width // 2)
-        term0 = self.connect_bbox_to_tracks(Direction.UPPER, lp, term0_bbox, port_tid, min_len_mode=MinLenMode.LOWER)
-        self.add_pin('term0', term0)
+        term0_bbox = BBox(term0_coord[0] - lead_width // 2, term0_coord[1] - lead_width // 2,
+                          term0_coord[0] + lead_width // 2, term0_coord[1] + lead_width // 2)
+        lead0_bbox = BBox(term0_bbox.xl, 0, term0_bbox.xh, term0_bbox.yh)
+        self.add_rect(lp_lead, lead0_bbox)
+        self.add_via(term0_bbox, lp_lead, lp, port_dir, extend=False)
+        self.add_pin_primitive('term0', lp_lead[0], lead0_bbox, hide=True)
 
         term1_coord = coords[-1]
-        term1_bbox = BBox(term1_coord[0] - width // 2, term1_coord[1] - width // 2,
-                          term1_coord[0] + width // 2, term1_coord[1] + width // 2)
-        term1 = self.connect_bbox_to_tracks(Direction.UPPER, lp, term1_bbox, port_tid, min_len_mode=MinLenMode.UPPER,
-                                            track_upper=2 * radius + width)
-        self.add_pin('term1', term1)
+        term1_bbox = BBox(term1_coord[0] - lead_width // 2, term1_coord[1] - lead_width // 2,
+                          term1_coord[0] + lead_width // 2, term1_coord[1] + lead_width // 2)
+        lead1_bbox = BBox(term1_bbox.xl, term1_bbox.yl, term1_bbox.xh, 2 * outer_radius)
+        self.add_rect(lp_lead, lead1_bbox)
+        self.add_via(term1_bbox, lp_lead, lp, port_dir, extend=False)
+        self.add_pin_primitive('term1', lp_lead[0], lead1_bbox, hide=True)
 
         # set size
-        self._actual_bbox = BBox(xm - radius - width // 2, 0, xm + radius + width // 2, 2 * radius + width)
-        self.set_size_from_bound_box(lay_id, BBox(0, 0, self._actual_bbox.xh, self._actual_bbox.yh), round_up=True)
+        self._actual_bbox = BBox(0, 0, 2 * outer_radius, 2 * outer_radius)
+        self.set_size_from_bound_box(lay_id, self._actual_bbox, round_up=True)
 
 
-def get_coords(n_turn: int, radius: int, width: int, spacing: int, xm: int, xl: int) -> Sequence[PointType]:
-    ym = width // 2 + radius
+def get_coords(n_turn: int, radius: int, width: int, spacing: int, xl: int) -> Sequence[PointType]:
+    xm = ym = width // 2 + radius
     coords = [(xl, ym - radius)]  # start
     for turn_idx in range(n_turn):
         coords.append((xm - radius, ym - radius))  # go left

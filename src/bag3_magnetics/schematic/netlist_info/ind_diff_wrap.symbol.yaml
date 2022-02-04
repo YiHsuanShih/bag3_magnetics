@@ -7,19 +7,6 @@ bbox:
   - 278
   - 204
 terminals:
-  VSS:
-    obj:
-      - 0
-      - layer: 229
-        purpose: 4294967295
-        net: ""
-        bbox:
-          - -4
-          - 96
-          - 4
-          - 104
-    stype: 2
-    ttype: 2
   minus0:
     obj:
       - 0
@@ -72,7 +59,45 @@ terminals:
           - 204
     stype: 0
     ttype: 2
+  ref0:
+    obj:
+      - 0
+      - layer: 229
+        purpose: 4294967295
+        net: ""
+        bbox:
+          - -4
+          - 96
+          - 4
+          - 104
+    stype: 0
+    ttype: 2
+  ref1:
+    obj:
+      - 0
+      - layer: 229
+        purpose: 4294967295
+        net: ""
+        bbox:
+          - 196
+          - 96
+          - 204
+          - 104
+    stype: 0
+    ttype: 2
 shapes:
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 1.5707963267948966
+      ang_stop: 4.7123889803846897
+      bbox:
+        - 130
+        - 100
+        - 140
+        - 120
   -
     - 5
     - layer: 231
@@ -85,6 +110,173 @@ shapes:
         -
           - 20
           - 100
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 1.5707963267948966
+      ang_stop: 4.7123889803846897
+      bbox:
+        - 130
+        - 80
+        - 140
+        - 100
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 1.5707963267948966
+      ang_stop: 4.7123889803846897
+      bbox:
+        - 130
+        - 60
+        - 140
+        - 80
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 60
+          - 0
+        -
+          - 60
+          - 60
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 140
+          - 0
+        -
+          - 140
+          - 60
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 140
+          - 200
+        -
+          - 140
+          - 140
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 60
+          - 200
+        -
+          - 60
+          - 140
+  -
+    - 0
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      bbox:
+        - 20
+        - 20
+        - 180
+        - 180
+  -
+    - 5
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      points:
+        -
+          - 180
+          - 100
+        -
+          - 200
+          - 100
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 4.7123889803846897
+      ang_stop: 1.5707963267948966
+      bbox:
+        - 60
+        - 120
+        - 70
+        - 140
+  -
+    - 8
+    - layer: 231
+      purpose: 237
+      net: ""
+      origin:
+        - 0
+        - 175
+      alignment: 4
+      orient: R0
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: "[@partName]"
+      evaluator: cdsNLPEvalText
+  -
+    - 4
+    - layer: 231
+      purpose: 241
+      net: ""
+      bbox:
+        - 78
+        - 138
+        - 82
+        - 142
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 4.7123889803846897
+      ang_stop: 1.5707963267948966
+      bbox:
+        - 60
+        - 100
+        - 70
+        - 120
+  -
+    - 4
+    - layer: 231
+      purpose: 241
+      net: ""
+      bbox:
+        - 118
+        - 58
+        - 122
+        - 62
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 4.7123889803846897
+      ang_stop: 1.5707963267948966
+      bbox:
+        - 60
+        - 80
+        - 70
+        - 100
   -
     - 7
     - layer: 229
@@ -100,119 +292,7 @@ shapes:
       overbar: false
       visible: true
       drafting: true
-      text: VSS
-  -
-    - 5
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      points:
-        -
-          - 60
-          - 200
-        -
-          - 60
-          - 140
-  -
-    - 7
-    - layer: 229
-      purpose: 237
-      net: ""
-      origin:
-        - 150
-        - 194
-      alignment: 1
-      orient: R270
-      font: 5
-      height: 10
-      overbar: false
-      visible: true
-      drafting: true
-      text: plus1
-  -
-    - 5
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      points:
-        -
-          - 140
-          - 200
-        -
-          - 140
-          - 140
-  -
-    - 7
-    - layer: 229
-      purpose: 237
-      net: ""
-      origin:
-        - 50
-        - 194
-      alignment: 1
-      orient: R270
-      font: 5
-      height: 10
-      overbar: false
-      visible: true
-      drafting: true
-      text: minus0
-  -
-    - 5
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      points:
-        -
-          - 60
-          - 0
-        -
-          - 60
-          - 60
-  -
-    - 7
-    - layer: 229
-      purpose: 237
-      net: ""
-      origin:
-        - 50
-        - 6
-      alignment: 7
-      orient: R270
-      font: 5
-      height: 10
-      overbar: false
-      visible: true
-      drafting: true
-      text: plus0
-  -
-    - 5
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      points:
-        -
-          - 140
-          - 0
-        -
-          - 140
-          - 60
-  -
-    - 7
-    - layer: 229
-      purpose: 237
-      net: ""
-      origin:
-        - 150
-        - 6
-      alignment: 7
-      orient: R270
-      font: 5
-      height: 10
-      overbar: false
-      visible: true
-      drafting: true
-      text: minus1
+      text: ref0
   -
     - 0
     - layer: 236
@@ -241,174 +321,131 @@ shapes:
       text: "[@instanceName]"
       evaluator: cdsNLPEvalText
   -
-    - 8
+    - 2
     - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 1.5707963267948966
+      ang_stop: 4.7123889803846897
+      bbox:
+        - 130
+        - 120
+        - 140
+        - 140
+  -
+    - 2
+    - layer: 231
+      purpose: 4294967295
+      net: ""
+      ang_start: 4.7123889803846897
+      ang_stop: 1.5707963267948966
+      bbox:
+        - 60
+        - 60
+        - 70
+        - 80
+  -
+    - 7
+    - layer: 229
       purpose: 237
       net: ""
       origin:
-        - 0
-        - 175
-      alignment: 4
+        - 50
+        - 6
+      alignment: 7
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: plus0
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 50
+        - 194
+      alignment: 1
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: minus0
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 150
+        - 6
+      alignment: 7
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: minus1
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 150
+        - 194
+      alignment: 1
+      orient: R270
+      font: 5
+      height: 10
+      overbar: false
+      visible: true
+      drafting: true
+      text: plus1
+  -
+    - 7
+    - layer: 229
+      purpose: 237
+      net: ""
+      origin:
+        - 166
+        - 110
+      alignment: 1
       orient: R0
       font: 5
       height: 10
       overbar: false
       visible: true
       drafting: true
-      text: "[@partName]"
-      evaluator: cdsNLPEvalText
-  -
-    - 0
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      bbox:
-        - 20
-        - 20
-        - 180
-        - 180
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 4.7123889803846897
-      ang_stop: 1.5707963267948966
-      bbox:
-        - 60
-        - 60
-        - 70
-        - 80
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 4.7123889803846897
-      ang_stop: 1.5707963267948966
-      bbox:
-        - 60
-        - 80
-        - 70
-        - 100
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 4.7123889803846897
-      ang_stop: 1.5707963267948966
-      bbox:
-        - 60
-        - 100
-        - 70
-        - 120
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 4.7123889803846897
-      ang_stop: 1.5707963267948966
-      bbox:
-        - 60
-        - 120
-        - 70
-        - 140
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 1.5707963267948966
-      ang_stop: 4.7123889803846897
-      bbox:
-        - 130
-        - 60
-        - 140
-        - 80
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 1.5707963267948966
-      ang_stop: 4.7123889803846897
-      bbox:
-        - 130
-        - 80
-        - 140
-        - 100
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 1.5707963267948966
-      ang_stop: 4.7123889803846897
-      bbox:
-        - 130
-        - 100
-        - 140
-        - 120
-  -
-    - 2
-    - layer: 231
-      purpose: 4294967295
-      net: ""
-      ang_start: 1.5707963267948966
-      ang_stop: 4.7123889803846897
-      bbox:
-        - 130
-        - 120
-        - 140
-        - 140
-  -
-    - 4
-    - layer: 231
-      purpose: 241
-      net: ""
-      bbox:
-        - 78
-        - 138
-        - 82
-        - 142
-  -
-    - 4
-    - layer: 231
-      purpose: 241
-      net: ""
-      bbox:
-        - 118
-        - 58
-        - 122
-        - 62
+      text: ref1
 instances:
   {}
 props:
   interfaceLastChanged:
     - 4
-    - time_val: 1624125576
+    - time_val: 1644002297
   partName:
     - 3
     - ind_diff_wrap
   pin#:
     - 0
-    - 5
-  portOrder:
-    - 5
-    - name: ILList
-      bin_val: ("VSS" "minus0" "minus1" "plus0" "plus1")
+    - 12
   vendorName:
     - 3
     - ""
 app_defs:
   _dbLastSavedCounter:
     - 0
-    - 189
+    - 350
   _dbvCvTimeStamp:
     - 0
-    - 189
+    - 350
   cdbRevision:
     - 0
     - 227612

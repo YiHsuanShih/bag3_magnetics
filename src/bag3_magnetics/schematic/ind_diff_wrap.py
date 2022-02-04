@@ -92,7 +92,3 @@ class bag3_magnetics__ind_diff_wrap(Module):
 
         self.instances['XP1'].design(**plus1)
         self.instances['XM1'].design(**minus1)
-
-        # TODO: guard ring
-        self.remove_instance('XNC')
-        self.remove_pin('VSS')
