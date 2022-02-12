@@ -1,105 +1,91 @@
 # -*- coding: utf-8 -*-
-from typing import List, Mapping, Any, Union
+from typing import Mapping, Any, Sequence
 
-from bag.layout.template import TemplateDB
+from bag.layout.template import TemplateDB, TemplateBase
 from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.typing import PointType
 
-from pybag.enum import Orientation
+from pybag.enum import PathStyle
+from .util import compute_vertices
 
-from .util import IndTemplate
 
-
-class IndRing(IndTemplate):
-    """An inductor guard ring.
-    """
-
+class IndRing(TemplateBase):
+    """Inductor Ring, 'R0' orientation"""
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
-        IndTemplate.__init__(self, temp_db, params, **kwargs)
-        self._outer_path_coord = None
-        self._inner_path_coord = None
-        self._tot_dim = 0
-        self._opening = 0
+        TemplateBase.__init__(self, temp_db, params, **kwargs)
+        self._actual_bbox = BBox(0, 0, 0, 0)
+        self._turn_coords = []
 
     @property
-    def outer_path_coord(self) -> List[List[List[PointType]]]:
-        return self._outer_path_coord
+    def actual_bbox(self) -> BBox:
+        return self._actual_bbox
 
     @property
-    def inner_path_coord(self) -> List[List[List[PointType]]]:
-        return self._inner_path_coord
-
-    @property
-    def tot_dim(self) -> int:
-        return self._tot_dim
-
-    @property
-    def opening(self) -> int:
-        return self._opening
+    def turn_coords(self) -> Sequence[PointType]:
+        return self._turn_coords
 
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
-        """Returns a dictionary containing parameter descriptions.
-
-        Override this method to return a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Mapping[str, str]
-            dictionary from parameter name to description.
-        """
         return dict(
-            core_dim='Dimension of core inductor',
-            core_opening='Opening of core inductor',
-            core_width='Width of core inductor',
-            ring_spacing='spacing between ring and inductor',
-            ring_width='ring width',
-            ring_gap='gap distance between rings',
-            ring_turn='ring turn number',
-            ring_laylist='ring layer list',
-            ring_sup='supply name fpr ring; VSS by default',
-            layid='inductor layer id',
-            orient='orientation of inductor',
+            lay_id='Inductor layer ID: top layer available in the process',
+            width='Metal width for ring',
+            gap='Gap in ring for inductor leads',
+            radius_x='radius along X-axis',
+            radius_y='radius along Y-axis',
+            ring_sup='supply name for ring; VSS by default',
         )
 
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
-            orient=Orientation.R0,
             ring_sup='VSS',
         )
 
-    def draw_layout(self):
-        core_dim: int = self.params['core_dim']
-        core_opening: int = self.params['core_opening']
-        # core_width: int = self.params['core_width']
-        ring_spacing: int = self.params['ring_spacing']
-        ring_width: int = self.params['ring_width']
-        ring_gap: int = self.params['ring_gap']
-        ring_turn: int = self.params['ring_turn']
-        ring_laylist: List[int] = self.params['ring_laylist']
+    def draw_layout(self) -> None:
+        lay_id: int = self.params['lay_id']
+        lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
+
+        width: int = self.params['width']
+        gap: int = self.params['gap']
+        radius_x: int = self.params['radius_x']
+        radius_y: int = self.params['radius_y']
         ring_sup: str = self.params['ring_sup']
-        layid: int = self.params['layid']
-        orient: Union[str, Orientation] = self.params['orient']
-        if isinstance(orient, str):
-            orient = Orientation[orient]
 
-        self._opening = ring_opening = 3 * core_opening
+        vertices = compute_vertices(4, 1, radius_x, radius_y, width, 0)[0]
 
-        # ring half length
-        tot_dim = core_dim + 2 * (ring_spacing + ring_width)
-        ring_hflen = -(- tot_dim // 2) - (ring_width // 2)
-        ring_arr, ring_lenarr, pin_bbox = self._draw_ind_ring(ring_hflen, ring_width, ring_gap, ring_turn, ring_opening,
-                                                              layid, ring_laylist, orient=orient)
+        # Compute path co-ordinates
+        off_x = radius_x + width // 2
+        gap2 = -(- gap // 2)
+        _turn = [(off_x + gap2, vertices[0][1]), (off_x - gap2, vertices[-1][1])]
+        _turn[1:1] = vertices
+        self.add_path(lp, width, _turn, PathStyle.extend, join_style=PathStyle.extend)
 
-        lp = self.grid.tech_info.get_lay_purp_list(ring_laylist[-1] - 1)[0]
-        self.add_pin_primitive(ring_sup, lp[0], pin_bbox)
+        # --- complete guard ring on (lay_id - 1) --- #
+        #     R0
+        #   2-----1
+        #   |     |
+        #   |     |
+        #   3-----0
+        bot_path = [(off_x - gap2 - width, vertices[-1][1]), (off_x + gap2 + width, vertices[0][1])]
+        bot_lay_id = lay_id - 1
+        bot_lp = self.grid.tech_info.get_lay_purp_list(bot_lay_id)[0]
+        self.add_path(bot_lp, width, bot_path, PathStyle.extend, join_style=PathStyle.extend)
 
-        # set properties
-        self._tot_dim = tot_dim = ring_lenarr[-1] + ring_width // 2
-        self._inner_path_coord = ring_arr[0]
+        bot_dir = self.grid.get_direction(bot_lay_id)
+        via_bbox0 = BBox(bot_path[0][0] - width // 2, bot_path[0][1] - width // 2,
+                         _turn[-1][0] + width // 2, bot_path[0][1] + width // 2)
+        self.add_via(via_bbox0, bot_lp, lp, bot_dir, extend=False)
+        via_bbox1 = BBox(_turn[0][0] - width // 2, bot_path[1][1] - width // 2,
+                         bot_path[1][0] + width // 2, bot_path[1][1] + width // 2)
+        self.add_via(via_bbox1, bot_lp, lp, bot_dir, extend=False)
+
+        pin_bbox = BBox(off_x - width, _turn[0][1] - width // 2, off_x + width, _turn[0][1] + width // 2)
+        self.add_pin_primitive(ring_sup, bot_lp[0], pin_bbox)
+
+        # set attributes
+        self._turn_coords = _turn
 
         # set size
-        tot_bbox = BBox(0, 0, tot_dim, tot_dim)
-        self.set_size_from_bound_box(layid, tot_bbox, round_up=True)
+        self._actual_bbox = BBox(0, 0, 2 * radius_x + width, 2 * radius_y + width)
+        self.set_size_from_bound_box(lay_id, self._actual_bbox, round_up=True)
