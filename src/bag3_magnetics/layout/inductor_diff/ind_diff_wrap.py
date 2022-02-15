@@ -89,7 +89,8 @@ class IndDiffWrap(TemplateBase):
         # TODO: draw fill
 
         # add inductor ID layer
-        id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
-        self.add_rect(id_lp, ring_bbox)
+        id_lp = self.grid.tech_info.tech_params['inductor'].get('id_lp', [])
+        for _lp in id_lp:
+            self.add_rect(_lp, ring_bbox)
 
         self.sch_params = core_master.sch_params

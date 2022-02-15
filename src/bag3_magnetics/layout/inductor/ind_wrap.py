@@ -142,8 +142,9 @@ class IndWrap(TemplateBase):
                             ring_width)
 
         # add inductor ID layer
-        id_lp = self.grid.tech_info.tech_params['inductor']['id_lp']
-        self.add_rect(id_lp, self._actual_bbox)
+        id_lp = self.grid.tech_info.tech_params['inductor'].get('id_lp', [])
+        for _lp in id_lp:
+            self.add_rect(_lp, self._actual_bbox)
 
         # set size
         self.set_size_from_bound_box(lay_id, self._actual_bbox, round_up=True)
