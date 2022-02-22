@@ -1,26 +1,20 @@
 # -*- coding: utf-8 -*-
 from typing import Mapping, Any, Sequence
 
-from bag.layout.template import TemplateDB, TemplateBase
+from bag.layout.template import TemplateDB
 from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.typing import PointType
 
-from pybag.enum import PathStyle
-from .util import compute_vertices, IndLayoutHelper
+from .util import compute_vertices, IndTemplate
 
 
-class IndCore(TemplateBase):
+class IndCore(IndTemplate):
     """Inductor Core with multiple turns, 'R0' orientation"""
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
-        TemplateBase.__init__(self, temp_db, params, **kwargs)
-        self._actual_bbox = BBox(0, 0, 0, 0)
+        IndTemplate.__init__(self, temp_db, params, **kwargs)
         self._term_coords = []
         self._turn_coords = []
-
-    @property
-    def actual_bbox(self) -> BBox:
-        return self._actual_bbox
 
     @property
     def term_coords(self) -> Sequence[PointType]:
@@ -33,8 +27,9 @@ class IndCore(TemplateBase):
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
         return dict(
-            lay_id='Inductor layer ID: top layer available in the process',
-            n_turns='Number of turns',
+            lay_id='Inductor top layer ID',
+            bot_lay_id='Inductor bot layer ID; same as top layer by default',
+            n_turns='Number of turns; 1 by default',
             width='Metal width for inductor turns',
             spacing='Metal spacing between inductor turns',
             radius_x='radius along X-axis',
@@ -46,14 +41,21 @@ class IndCore(TemplateBase):
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
+            bot_lay_id=-1,
+            n_turns=1,
             ind_shape='Octagon',
         )
 
     def draw_layout(self) -> None:
         lay_id: int = self.params['lay_id']
-        lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
+        bot_lay_id: int = self.params['bot_lay_id']
+        if bot_lay_id < 1:
+            bot_lay_id = lay_id
 
-        n_turns: int = self.params['n_turns']
+        if bot_lay_id < lay_id:
+            n_turns = 2
+        else:
+            n_turns: int = self.params['n_turns']
         width: int = self.params['width']
         spacing: int = self.params['spacing']
         radius_x: int = self.params['radius_x']
@@ -71,6 +73,16 @@ class IndCore(TemplateBase):
             raise ValueError(f'Unknown ind_shape={ind_shape}. Use "Rectangle" or "Octagon".')
 
         vertices = compute_vertices(n_sides, n_turns, radius_x, radius_y, width, spacing)
+        # compute geometry list
+        if bot_lay_id == lay_id:
+            # single or multi turn inductor on same layer
+            geo_list = [{'vertices': vertices[tidx], 'lay_id': lay_id} for tidx in range(n_turns)]
+            n_geo = n_turns
+        else:
+            # single or multi turn inductor on multiple layers
+            geo_list = [{'vertices': vertices[(lay_id - lidx) % 2], 'lay_id': lidx}
+                        for lidx in range(lay_id, bot_lay_id - 1, -1)]
+            n_geo = lay_id - bot_lay_id + 1
 
         # Check feasibility based on outer turn and term_sp
         if vertices[0][0][0] - vertices[0][-1][0] < term_sp + 4 * width:
@@ -89,81 +101,61 @@ class IndCore(TemplateBase):
         # Compute path co-ordinates
         turn_coords = []
         off_x = radius_x + width // 2
-        for tidx in range(n_turns):
-            _vertices = vertices[tidx]
-
+        for gidx, geo_specs in enumerate(geo_list):
             _bridge_xl = off_x - bridge_sp // 2
             _bridge_xr = off_x + bridge_sp // 2
-            if tidx == 0:
+            if gidx == 0:
                 _start_x = off_x + (term_sp + width) // 2
                 _stop_x = off_x - (term_sp + width) // 2
             else:
                 _start_x, _stop_x = _bridge_xr, _bridge_xl
 
-            _mid = n_sides // 2
-            _turn_r = [(_start_x, _vertices[0][1]), (_bridge_xr, _vertices[_mid - 1][1])]
-            _turn_r[1:1] = _vertices[:_mid]
-            _turn_l = [(_bridge_xl, _vertices[_mid][1]), (_stop_x, _vertices[-1][1])]
-            _turn_l[1:1] = _vertices[_mid:]
-
-            # cannot draw all paths in this layout because of mysterious C++ error.
-            # Create separate sub layouts with each turn.
-            path_list = [
-                dict(lay_id=lay_id, width=width, points=_turn_l),
-                dict(lay_id=lay_id, width=width, points=_turn_r),
-            ]
-            _master: IndLayoutHelper = self.new_template(IndLayoutHelper, params=dict(path_list=path_list))
-            self.add_instance(_master, inst_name=f'IndTurn{tidx}')
-            turn_coords.append(dict(left=_turn_l, right=_turn_r))
+            _lay_id = geo_specs['lay_id']
+            turn_coords.append(self._draw_turn(_lay_id, width, n_sides, geo_specs['vertices'], _start_x, _stop_x,
+                                               _bridge_xl, _bridge_xr, f'{_lay_id}_{gidx}'))
 
         # Compute bridge co-ordinates
-        bridge_lp = self.grid.tech_info.get_lay_purp_list(lay_id - 1)[0]
-        bridge_dir = self.grid.get_direction(lay_id - 1)
         # --- top bridge --- #
-        if n_turns % 2:
+        if n_geo % 2:
             # innermost top turn connects directly
-            self.add_path(lp, width, [turn_coords[-1]['left'][0], turn_coords[-1]['right'][-1]], PathStyle.round)
-        if n_turns > 1:
-            for tidx in range(1, n_turns, 2):
-                _top_l = turn_coords[tidx - 1]['left'][0]
-                _top_r = turn_coords[tidx - 1]['right'][-1]
-                _bot_l = turn_coords[tidx]['left'][0]
-                _bot_r = turn_coords[tidx]['right'][-1]
-                self.add_path(lp, width, [_bot_l, (_bot_l[0] + width, _bot_l[1]),
-                                          (_top_r[0] - width, _top_r[1]), _top_r], PathStyle.round)
-                self.add_path(bridge_lp, width, [(_top_l[0] - 2 * width, _top_l[1]), (_top_l[0] + width, _top_l[1]),
-                                                 (_bot_r[0] - width, _bot_r[1]), (_bot_r[0] + 2 * width, _bot_r[1])],
-                              PathStyle.round)
-                via_bbox0 = BBox(_top_l[0] - 2 * width, _top_l[1] - width // 2, _top_l[0], _top_l[1] + width // 2)
-                self.add_via(via_bbox0, bridge_lp, lp, bridge_dir, extend=False)
-                via_bbox1 = BBox(_bot_r[0], _bot_r[1] - width // 2, _bot_r[0] + 2 * width, _bot_r[1] + width // 2)
-                self.add_via(via_bbox1, bridge_lp, lp, bridge_dir, extend=False)
+            _lay_id = geo_list[-1]['lay_id']
+            self._draw_bridge(turn_coords[-1]['left'][0], turn_coords[-1]['right'][-1], _lay_id, _lay_id, _lay_id,
+                              width)
+        if n_geo > 1:
+            for gidx in range(1, n_geo, 2):
+                _bot_lay = geo_list[gidx]['lay_id']
+                _top_lay = geo_list[gidx - 1]['lay_id']
+
+                _bot_l = turn_coords[gidx]['left'][0]
+                _top_r = turn_coords[gidx - 1]['right'][-1]
+                self._draw_bridge(_bot_l, _top_r, _bot_lay, _top_lay, _top_lay, width)
+
+                _top_l = turn_coords[gidx - 1]['left'][0]
+                _bot_r = turn_coords[gidx]['right'][-1]
+                self._draw_bridge(_top_l, _bot_r, _top_lay, _bot_lay, _top_lay - 1, width)
 
         # --- bottom bridge --- #
-        if n_turns > 1:
-            if n_turns % 2 == 0:
+        if n_geo > 1:
+            if n_geo % 2 == 0:
                 # innermost bottom turn connects directly
-                self.add_path(lp, width, [turn_coords[-1]['left'][-1], turn_coords[-1]['right'][0]],
-                              PathStyle.round)
-            for tidx in range(1, n_turns - 1, 2):
-                _top_l = turn_coords[tidx + 1]['left'][-1]
-                _top_r = turn_coords[tidx + 1]['right'][0]
-                _bot_l = turn_coords[tidx]['left'][-1]
-                _bot_r = turn_coords[tidx]['right'][0]
-                self.add_path(lp, width, [_top_l, (_top_l[0] + width, _top_l[1]),
-                                          (_bot_r[0] - width, _bot_r[1]), _bot_r], PathStyle.round)
-                self.add_path(bridge_lp, width,
-                              [(_bot_l[0] - 2 * width, _bot_l[1]), (_bot_l[0] + width, _bot_l[1]),
-                               (_top_r[0] - width, _top_r[1]), (_top_r[0] + 2 * width, _top_r[1])],
-                              PathStyle.round)
-                via_bbox0 = BBox(_bot_l[0] - 2 * width, _bot_l[1] - width // 2, _bot_l[0], _bot_l[1] + width // 2)
-                self.add_via(via_bbox0, bridge_lp, lp, bridge_dir, extend=False)
-                via_bbox1 = BBox(_top_r[0], _top_r[1] - width // 2, _top_r[0] + 2 * width, _top_r[1] + width // 2)
-                self.add_via(via_bbox1, bridge_lp, lp, bridge_dir, extend=False)
+                _lay_id = geo_list[-1]['lay_id']
+                self._draw_bridge(turn_coords[-1]['left'][-1], turn_coords[-1]['right'][0], _lay_id, _lay_id, _lay_id,
+                                  width)
+            for gidx in range(1, n_geo - 1, 2):
+                _bot_lay = geo_list[gidx]['lay_id']
+                _top_lay = geo_list[gidx + 1]['lay_id']
+
+                _top_l = turn_coords[gidx + 1]['left'][-1]
+                _bot_r = turn_coords[gidx]['right'][0]
+                self._draw_bridge(_top_l, _bot_r, _top_lay, _bot_lay, _bot_lay, width)
+
+                _top_r = turn_coords[gidx + 1]['right'][0]
+                _bot_l = turn_coords[gidx]['left'][-1]
+                self._draw_bridge(_bot_l, _top_r, _bot_lay, _top_lay, _bot_lay - 1, width)
 
         # set attributes
         self._term_coords = [turn_coords[0]['left'][-1], turn_coords[0]['right'][0]]
-        self._turn_coords = turn_coords
+        self._turn_coords = turn_coords[:n_turns]
 
         # set size
         self._actual_bbox = BBox(0, 0, 2 * radius_x + width, 2 * radius_y + width)

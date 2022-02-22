@@ -1,25 +1,20 @@
 # -*- coding: utf-8 -*-
 from typing import Mapping, Any, Sequence
 
-from bag.layout.template import TemplateDB, TemplateBase
+from bag.layout.template import TemplateDB
 from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.typing import PointType
 
 from pybag.enum import PathStyle
-from .util import compute_vertices
+from .util import compute_vertices, IndTemplate
 
 
-class IndRing(TemplateBase):
+class IndRing(IndTemplate):
     """Inductor Ring, 'R0' orientation"""
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
-        TemplateBase.__init__(self, temp_db, params, **kwargs)
-        self._actual_bbox = BBox(0, 0, 0, 0)
+        IndTemplate.__init__(self, temp_db, params, **kwargs)
         self._turn_coords = []
-
-    @property
-    def actual_bbox(self) -> BBox:
-        return self._actual_bbox
 
     @property
     def turn_coords(self) -> Sequence[PointType]:
@@ -28,8 +23,8 @@ class IndRing(TemplateBase):
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
         return dict(
-            lay_id='Inductor layer ID: top layer available in the process',
-            width='Metal width for ring',
+            lay_id='Inductor top layer ID',
+            bot_lay_id='Inductor bot layer ID; same as top layer by default',            width='Metal width for ring',
             gap='Gap in ring for inductor leads',
             radius_x='radius along X-axis',
             radius_y='radius along Y-axis',
@@ -39,12 +34,17 @@ class IndRing(TemplateBase):
     @classmethod
     def get_default_param_values(cls) -> Mapping[str, Any]:
         return dict(
+            bot_lay_id=-1,
             ring_sup='VSS',
         )
 
     def draw_layout(self) -> None:
         lay_id: int = self.params['lay_id']
         lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
+
+        bot_lay_id: int = self.params['bot_lay_id']
+        if bot_lay_id < 1:
+            bot_lay_id = lay_id
 
         width: int = self.params['width']
         gap: int = self.params['gap']
@@ -67,19 +67,28 @@ class IndRing(TemplateBase):
         #   |     |
         #   |     |
         #   3-----0
-        bot_path = [(off_x - gap2 - width, vertices[-1][1]), (off_x + gap2 + width, vertices[0][1])]
-        bot_lay_id = lay_id - 1
-        bot_lp = self.grid.tech_info.get_lay_purp_list(bot_lay_id)[0]
-        self.add_path(bot_lp, width, bot_path, PathStyle.extend, join_style=PathStyle.extend)
+        self._draw_bridge(_turn[-1], _turn[0], lay_id, lay_id, lay_id - 1, width, PathStyle.extend)
 
-        bot_dir = self.grid.get_direction(bot_lay_id)
-        via_bbox0 = BBox(bot_path[0][0] - width // 2, bot_path[0][1] - width // 2,
-                         _turn[-1][0] + width // 2, bot_path[0][1] + width // 2)
-        self.add_via(via_bbox0, bot_lp, lp, bot_dir, extend=False)
-        via_bbox1 = BBox(_turn[0][0] - width // 2, bot_path[1][1] - width // 2,
-                         bot_path[1][0] + width // 2, bot_path[1][1] + width // 2)
-        self.add_via(via_bbox1, bot_lp, lp, bot_dir, extend=False)
+        ring_path = [vertices[0]]
+        ring_path[0:0] = vertices
+        off_y = radius_y + width // 2
+        _bbox_t = BBox(off_x - width, vertices[1][1] - width // 2, off_x + width, vertices[1][1] + width // 2)
+        _bbox_l = BBox(vertices[2][0] - width // 2, off_y - width, vertices[2][0] + width // 2, off_y + width)
+        _bbox_r = BBox(vertices[0][0] - width // 2, off_y - width, vertices[0][0] + width // 2, off_y + width)
+        for _lay_id in range(lay_id - 1, bot_lay_id - 1, -1):
+            # draw rings on all layers below lay_id
+            _lp = self.grid.tech_info.get_lay_purp_list(_lay_id)[0]
+            self.add_path(_lp, width, ring_path, PathStyle.extend, join_style=PathStyle.extend)
 
+            # via to upper layer ring
+            top_lp = self.grid.tech_info.get_lay_purp_list(_lay_id + 1)[0]
+            _dir = self.grid.get_direction(_lay_id)
+            self.add_via(_bbox_t, _lp, top_lp, _dir, extend=False)
+            self.add_via(_bbox_l, _lp, top_lp, _dir, extend=False)
+            self.add_via(_bbox_r, _lp, top_lp, _dir, extend=False)
+
+        # add ring pin below leads for return path in EM sim
+        bot_lp = self.grid.tech_info.get_lay_purp_list(lay_id - 1)[0]
         pin_bbox = BBox(off_x - width, _turn[0][1] - width // 2, off_x + width, _turn[0][1] + width // 2)
         self.add_pin_primitive(ring_sup, bot_lp[0], pin_bbox)
 
