@@ -1,5 +1,5 @@
 lib_name: bag3_magnetics
-cell_name: ind_diff_wrap
+cell_name: ind_interleave_wrap
 view_name: schematic
 bbox:
   - -500

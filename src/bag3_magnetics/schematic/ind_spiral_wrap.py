@@ -41,15 +41,15 @@ from bag.util.immutable import Param
 
 
 # noinspection PyPep8Naming
-class bag3_magnetics__ind_diff_wrap(Module):
-    """Module for library bag3_magnetics cell ind_diff_wrap.
+class bag3_magnetics__ind_spiral_wrap(Module):
+    """Module for library bag3_magnetics cell ind_spiral_wrap.
 
     Fill in high level description here.
     """
 
     yaml_file = pkg_resources.resource_filename(__name__,
                                                 str(Path('netlist_info',
-                                                         'ind_diff_wrap.yaml')))
+                                                         'ind_spiral_wrap.yaml')))
 
     def __init__(self, database: ModuleDB, params: Param, **kwargs: Any) -> None:
         Module.__init__(self, self.yaml_file, database, params, **kwargs)
@@ -64,14 +64,16 @@ class bag3_magnetics__ind_diff_wrap(Module):
             dictionary from parameter names to descriptions.
         """
         return dict(
-            plus0='metal resistor parameters for plus0 terminal',
-            minus0='metal resistor parameters for minus0 terminal',
-            plus1='metal resistor parameters for plus1 terminal',
-            minus1='metal resistor parameters for minus1 terminal',
+            plus='metal resistor parameters for plus terminal',
+            minus='metal resistor parameters for minus terminal',
+            w_ring='True to have guard ring, False by default',
         )
 
-    def design(self, plus0: Mapping[str, Any], minus0: Mapping[str, Any], plus1: Mapping[str, Any],
-               minus1: Mapping[str, Any]) -> None:
+    @classmethod
+    def get_default_param_values(cls) -> Mapping[str, Any]:
+        return dict(w_ring=False)
+
+    def design(self, plus: Mapping[str, Any], minus: Mapping[str, Any], w_ring: bool) -> None:
         """To be overridden by subclasses to design this module.
 
         This method should fill in values for all parameters in
@@ -87,8 +89,9 @@ class bag3_magnetics__ind_diff_wrap(Module):
         restore_instance()
         array_instance()
         """
-        self.instances['XP0'].design(**plus0)
-        self.instances['XM0'].design(**minus0)
-
-        self.instances['XP1'].design(**plus1)
-        self.instances['XM1'].design(**minus1)
+        self.instances['XRP'].design(**plus)
+        self.instances['XRM'].design(**minus)
+        if not w_ring:
+            self.remove_instance('XTHRU')
+            self.remove_pin('ref_plus')
+            self.remove_pin('ref_minus')

@@ -1,5 +1,5 @@
 lib_name: bag3_magnetics
-cell_name: ind_diff_wrap
+cell_name: ind_interleave_wrap
 view_name: symbol
 bbox:
   - -48
@@ -432,7 +432,7 @@ props:
     - time_val: 1644002297
   partName:
     - 3
-    - ind_diff_wrap
+    - ind_interleave_wrap
   pin#:
     - 0
     - 12

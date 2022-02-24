@@ -24,7 +24,8 @@ class IndRing(IndTemplate):
     def get_params_info(cls) -> Mapping[str, str]:
         return dict(
             lay_id='Inductor top layer ID',
-            bot_lay_id='Inductor bot layer ID; same as top layer by default',            width='Metal width for ring',
+            bot_lay_id='Inductor bot layer ID; same as top layer by default',
+            width='Metal width for ring',
             gap='Gap in ring for inductor leads',
             radius_x='radius along X-axis',
             radius_y='radius along Y-axis',
@@ -90,7 +91,7 @@ class IndRing(IndTemplate):
         # add ring pin below leads for return path in EM sim
         bot_lp = self.grid.tech_info.get_lay_purp_list(lay_id - 1)[0]
         pin_bbox = BBox(off_x - width, _turn[0][1] - width // 2, off_x + width, _turn[0][1] + width // 2)
-        self.add_pin_primitive(ring_sup, bot_lp[0], pin_bbox)
+        self.add_pin_primitive(ring_sup, bot_lp[0], pin_bbox, hide=True)
 
         # set attributes
         self._turn_coords = _turn
