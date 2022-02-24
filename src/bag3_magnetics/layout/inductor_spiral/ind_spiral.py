@@ -64,7 +64,7 @@ class IndSpiral(IndSpiralTemplate):
                                                                    lead_spacing=lead_spacing, interleave=False,
                                                                    draw_lead=draw_lead))
             _bbox = _master.actual_bbox
-            flip = not (_lay_id & lay_id & 1)
+            flip = (lay_id & 1) != (_lay_id & 1)
 
             _top_lp = self.grid.tech_info.get_lay_purp_list(_lay_id)[0]
             _bot_lp = self.grid.tech_info.get_lay_purp_list(_lay_id - 1)[0]
