@@ -32,7 +32,6 @@ class IndWrap(IndTemplate):
             spacing='Metal spacing between inductor turns',
             radius_x='radius along X-axis',
             radius_y='radius along Y-axis',
-            term_len='Length of inductor terminals',
             term_sp='Spacing between inductor terminals',
             ind_shape='"Rectangle" or "Octagon"; "Octagon" by default',
 
@@ -69,7 +68,6 @@ class IndWrap(IndTemplate):
         spacing: int = self.params['spacing']
         radius_x: int = self.params['radius_x']
         radius_y: int = self.params['radius_y']
-        term_len: int = self.params['term_len']
         term_sp: int = self.params['term_sp']
         ind_shape: str = self.params['ind_shape']
 
@@ -129,7 +127,7 @@ class IndWrap(IndTemplate):
             term_coords.append((_coord[0] + dx, _coord[1] + dy))
         res1_l = width // 2
         res2_l = width // 4
-        term0, term1 = self._draw_leads(lay_id, width, term_len, term_coords, res1_l, res2_l)
+        term0, term1 = self._draw_leads(lay_id, width, term_coords, res1_l, res2_l)
 
         # add pins
         lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]

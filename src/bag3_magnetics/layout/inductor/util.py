@@ -109,13 +109,12 @@ class IndTemplate(TemplateBase, abc.ABC):
         bridge_lp = self.grid.tech_info.get_lay_purp_list(layer_bridge)[0]
         self.add_path(bridge_lp, width, points, style, join_style=style)
 
-    def _draw_leads(self, lay_id: int, width: int, term_len: int, term_coords: Sequence[PointType], res1_l: int,
-                    res2_l: int) -> Tuple[BBox, BBox]:
+    def _draw_leads(self, lay_id: int, width: int, term_coords: Sequence[PointType], res1_l: int, res2_l: int
+                    ) -> Tuple[BBox, BBox]:
         term_ext = width + max(res1_l, res2_l) + 2 * width
-        term_len = max(term_ext, term_len)
 
         # BBox for lead metals
-        _lower = min(0, term_coords[0][1] - term_len)
+        _lower = min(0, term_coords[0][1] - term_ext)
         _upper = term_coords[0][1]
 
         _bbox0 = BBox(term_coords[0][0] - width // 2, _lower, term_coords[0][0] + width // 2, _upper)
