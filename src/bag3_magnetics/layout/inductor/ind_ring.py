@@ -91,7 +91,7 @@ class IndRing(IndTemplate):
         # add ring pin below leads for return path in EM sim
         bot_lp = self.grid.tech_info.get_lay_purp_list(lay_id - 1)[0]
         pin_bbox = BBox(off_x - width, _turn[0][1] - width // 2, off_x + width, _turn[0][1] + width // 2)
-        self.add_pin_primitive(ring_sup, bot_lp[0], pin_bbox, hide=True)
+        self.add_pin_primitive(ring_sup, bot_lp[0], pin_bbox)
 
         # set attributes
         self._turn_coords = _turn

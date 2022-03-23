@@ -108,7 +108,7 @@ class IndWrap(IndTemplate):
             dx = dy = ring_width + ring_spacing
             ring_master: IndRing = self.new_template(IndRing, params=ring_params)
             ring_inst = self.add_instance(ring_master, inst_name='XRING')
-            self.reexport(ring_inst.get_port(ring_sup), hide=False)
+            self.reexport(ring_inst.get_port(ring_sup))
             ring_turn_coords = ring_master.turn_coords
             self._actual_bbox = ring_master.actual_bbox
         else:
