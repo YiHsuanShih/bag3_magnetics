@@ -69,13 +69,15 @@ class IndTemplate(TemplateBase, abc.ABC):
     def _draw_bridge(self, coord_l: PointType, coord_r: PointType, layer_l: int, layer_r: int, layer_bridge: int,
                      width: int, style: PathStyle = PathStyle.round) -> None:
         points = []
+        wext = int(width // 2 * np.sin(np.pi / 8))
         # left
         if layer_l == layer_bridge:
             points.append(coord_l)
         else:
-            points.append((coord_l[0] - 2 * width, coord_l[1]))
+            points.append((coord_l[0] - width, coord_l[1]))
             # draw via
-            via_bbox = BBox(coord_l[0] - 2 * width, coord_l[1] - width // 2, coord_l[0], coord_l[1] + width // 2)
+            via_bbox = BBox(coord_l[0] - width - wext, coord_l[1] - width // 2,
+                            coord_l[0] + wext, coord_l[1] + width // 2)
             if layer_l > layer_bridge:
                 bot_lay, top_lay = layer_bridge, layer_l
             else:
@@ -93,9 +95,10 @@ class IndTemplate(TemplateBase, abc.ABC):
         if layer_r == layer_bridge:
             points.append(coord_r)
         else:
-            points.append((coord_r[0] + 2 * width, coord_r[1]))
+            points.append((coord_r[0] + width, coord_r[1]))
             # draw via
-            via_bbox = BBox(coord_r[0], coord_r[1] - width // 2, coord_r[0] + 2 * width, coord_r[1] + width // 2)
+            via_bbox = BBox(coord_r[0] - wext, coord_r[1] - width // 2,
+                            coord_r[0] + width + wext, coord_r[1] + width // 2)
             if layer_r > layer_bridge:
                 bot_lay, top_lay = layer_bridge, layer_r
             else:
@@ -109,13 +112,27 @@ class IndTemplate(TemplateBase, abc.ABC):
         bridge_lp = self.grid.tech_info.get_lay_purp_list(layer_bridge)[0]
         self.add_path(bridge_lp, width, points, style, join_style=style)
 
-    def _draw_leads(self, lay_id: int, width: int, term_coords: Sequence[PointType], res1_l: int, res2_l: int
-                    ) -> Tuple[BBox, BBox]:
+    def _draw_leads(self, lay_id: int, width: int, term_coords: Sequence[PointType], res1_l: int, res2_l: int,
+                    y_end: int = 0, up: bool = False) -> Tuple[BBox, BBox]:
         term_ext = width + max(res1_l, res2_l) + 2 * width
 
         # BBox for lead metals
-        _lower = min(0, term_coords[0][1] - term_ext)
-        _upper = term_coords[0][1]
+        if up:
+            _lower = term_coords[0][1]
+            _upper = max(y_end, term_coords[0][1] + term_ext)
+            m_lower0 = m_lower1 = _lower + width
+            m_upper0 = _lower + width + res1_l
+            m_upper1 = _lower + width + res2_l
+            p_lower = _upper - width
+            p_upper = _upper
+        else:
+            _lower = min(y_end, term_coords[0][1] - term_ext)
+            _upper = term_coords[0][1]
+            m_lower0 = _upper - width - res1_l
+            m_lower1 = _upper - width - res2_l
+            m_upper0 = m_upper1 = _upper - width
+            p_lower = _lower
+            p_upper = _lower + width
 
         _bbox0 = BBox(term_coords[0][0] - width // 2, _lower, term_coords[0][0] + width // 2, _upper)
         _bbox1 = BBox(term_coords[1][0] - width // 2, _lower, term_coords[1][0] + width // 2, _upper)
@@ -124,14 +141,14 @@ class IndTemplate(TemplateBase, abc.ABC):
         self.add_rect(lp, _bbox1)
 
         # BBox for res_metal
-        term0_res_bbox = BBox(_bbox0.xl, _upper - width - res1_l, _bbox0.xh, _upper - width)
-        term1_res_bbox = BBox(_bbox1.xl, _upper - width - res2_l, _bbox1.xh, _upper - width)
+        term0_res_bbox = BBox(_bbox0.xl, m_lower0, _bbox0.xh, m_upper0)
+        term1_res_bbox = BBox(_bbox1.xl, m_lower1, _bbox1.xh, m_upper1)
         self.add_res_metal(lay_id, term0_res_bbox)
         self.add_res_metal(lay_id, term1_res_bbox)
 
         # BBox for pins
-        term0 = BBox(_bbox0.xl, _bbox0.yl, _bbox0.xh, _bbox0.yl + width)
-        term1 = BBox(_bbox1.xl, _bbox1.yl, _bbox1.xh, _bbox1.yl + width)
+        term0 = BBox(_bbox0.xl, p_lower, _bbox0.xh, p_upper)
+        term1 = BBox(_bbox1.xl, p_lower, _bbox1.xh, p_upper)
         return term0, term1
 
     def _draw_fill(self, n_sides: int, fill_specs: Mapping[str, Any],

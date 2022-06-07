@@ -383,7 +383,7 @@ instances:
     is_primitive: true
   XRC:
     lib_name: BAG_prim
-    cell_name: res_metal_8
+    cell_name: res_metal_1
     view_name: symbol
     xform:
       - -50
@@ -407,7 +407,7 @@ instances:
     is_primitive: true
   XRM:
     lib_name: BAG_prim
-    cell_name: res_metal_8
+    cell_name: res_metal_1
     view_name: symbol
     xform:
       - 60
@@ -431,7 +431,7 @@ instances:
     is_primitive: true
   XRP:
     lib_name: BAG_prim
-    cell_name: res_metal_8
+    cell_name: res_metal_1
     view_name: symbol
     xform:
       - -150
@@ -471,7 +471,7 @@ props:
     - 4
   schGeometryLastUpdated:
     - 0
-    - 1364
+    - 1377
   schGeometryVersion:
     - 3
     - sch.ds.gm.1.4
@@ -481,10 +481,10 @@ props:
 app_defs:
   _dbLastSavedCounter:
     - 0
-    - 1364
+    - 1377
   _dbvCvTimeStamp:
     - 0
-    - 1364
+    - 1377
   cdbRevision:
     - 0
     - 227612
