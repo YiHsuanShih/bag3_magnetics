@@ -11,8 +11,8 @@ from bag.util.immutable import Param
 from pybag.enum import PathStyle
 
 
-def round_up(val_f: float) -> int:
-    return int(np.ceil(val_f)) if val_f > 0 else int(np.floor(val_f))
+def round_int(val_f: float) -> int:
+    return int(np.round(val_f))
 
 
 def compute_vertices(n_sides: int, n_turns: int, radius_x: int, radius_y: int, width: int, spacing: int
@@ -26,15 +26,15 @@ def compute_vertices(n_sides: int, n_turns: int, radius_x: int, radius_y: int, w
 
     vertices = [[] for _ in range(n_turns)]
     for tidx in range(n_turns):
-        _rad_x = round_up((radius_x - tidx * (width + spacing)) / np.cos(phase_step / 2))
+        _rad_x = (radius_x - tidx * (width + spacing)) / np.cos(phase_step / 2)
         for sidx in range(n_sides):
             if n_sides // 4 <= sidx < 3 * n_sides // 4:
                 off_y = 2 * (radius_y - radius_x)
             else:
                 off_y = 0
             _phase = phase_ini + phase_step * sidx
-            vertices[tidx].append((off_x + round_up(_rad_x * np.cos(_phase)),
-                                   off_x + round_up(_rad_x * np.sin(_phase)) + off_y))
+            vertices[tidx].append((off_x + round_int(_rad_x * np.cos(_phase)),
+                                   off_x + round_int(_rad_x * np.sin(_phase)) + off_y))
     return vertices
 
 
@@ -53,14 +53,18 @@ class IndTemplate(TemplateBase, abc.ABC):
         _mid = n_sides // 2
         _turn_r = [(start_x, vertices[0][1]), (bridge_xr, vertices[_mid - 1][1])]
         _turn_r[1:1] = vertices[:_mid]
+        if _turn_r[0] == _turn_r[1]:
+            _turn_r = _turn_r[1:]
         _turn_l = [(bridge_xl, vertices[_mid][1]), (stop_x, vertices[-1][1])]
         _turn_l[1:1] = vertices[_mid:]
+        if _turn_l[-1] == _turn_l[-2]:
+            _turn_l = _turn_l[:-1]
 
         # cannot draw all paths in this layout because of mysterious C++ error.
         # Create separate sub layouts with each turn.
         path_list = [
-            dict(lay_id=lay_id, width=width, points=_turn_l),
-            dict(lay_id=lay_id, width=width, points=_turn_r),
+            dict(lay_id=lay_id, width=width, points=_turn_l, style=PathStyle.extend),
+            dict(lay_id=lay_id, width=width, points=_turn_r, style=PathStyle.extend),
         ]
         _master: IndLayoutHelper = self.new_template(IndLayoutHelper, params=dict(path_list=path_list))
         self.add_instance(_master, inst_name=f'IndTurn_{suf}')
@@ -110,10 +114,11 @@ class IndTemplate(TemplateBase, abc.ABC):
 
         # draw path
         bridge_lp = self.grid.tech_info.get_lay_purp_list(layer_bridge)[0]
-        self.add_path(bridge_lp, width, points, style, join_style=style)
+        self.add_path(bridge_lp, width, points, style, join_style=PathStyle.round)
 
     def _draw_leads(self, lay_id: int, width: int, term_coords: Sequence[PointType], res1_l: int, res2_l: int,
                     y_end: int = 0, up: bool = False) -> Tuple[BBox, BBox]:
+        # TODO: refactor using _draw_lead()
         term_ext = width + max(res1_l, res2_l) + 2 * width
 
         # BBox for lead metals
@@ -150,6 +155,38 @@ class IndTemplate(TemplateBase, abc.ABC):
         term0 = BBox(_bbox0.xl, p_lower, _bbox0.xh, p_upper)
         term1 = BBox(_bbox1.xl, p_lower, _bbox1.xh, p_upper)
         return term0, term1
+
+    def _draw_lead(self, lay_id: int, width: int, term_coord: PointType, res_l: int, y_end: int = 0, up: bool = False
+                   ) -> BBox:
+        term_ext = width + res_l + 2 * width
+
+        # BBox for lead metals
+        if up:
+            _lower = term_coord[1]
+            _upper = max(y_end, term_coord[1] + term_ext)
+            m_lower = _lower + width
+            m_upper = _lower + width + res_l
+            p_lower = _upper - width
+            p_upper = _upper
+        else:
+            _lower = min(y_end, term_coord[1] - term_ext)
+            _upper = term_coord[1]
+            m_lower = _upper - width - res_l
+            m_upper = _upper - width
+            p_lower = _lower
+            p_upper = _lower + width
+
+        _bbox = BBox(term_coord[0] - width // 2, _lower, term_coord[0] + width // 2, _upper)
+        lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
+        self.add_rect(lp, _bbox)
+
+        # BBox for res_metal
+        term_res_bbox = BBox(_bbox.xl, m_lower, _bbox.xh, m_upper)
+        self.add_res_metal(lay_id, term_res_bbox)
+
+        # BBox for pins
+        term = BBox(_bbox.xl, p_lower, _bbox.xh, p_upper)
+        return term
 
     def _draw_fill(self, n_sides: int, fill_specs: Mapping[str, Any],
                    core_turn_coords: Sequence[Mapping[str, Sequence[PointType]]], width: int, dx: int, dy: int,
@@ -373,7 +410,7 @@ class IndLayoutHelper(TemplateBase):
 
             style: PathStyle = _specs.get('style', PathStyle.round)
 
-            self.add_path(lp, _specs['width'], list(_specs['points']), style, join_style=style)
+            self.add_path(lp, _specs['width'], list(_specs['points']), style, join_style=PathStyle.round)
             top_lay_id = max(top_lay_id, lay_id)
 
         # set size

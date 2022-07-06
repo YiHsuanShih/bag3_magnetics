@@ -9,10 +9,6 @@ from bag.layout.util import BBox
 from bag.util.immutable import Param
 
 
-def round_up(val_f: float) -> int:
-    return int(np.ceil(val_f)) if val_f > 0 else int(np.floor(val_f))
-
-
 def compute_vertices(n_turns: int, radius: int, width: int, spacing: int, dx: int, interleave: bool, draw_lead: bool,
                      ) -> Sequence[PointType]:
     xm = ym = width // 2 + radius

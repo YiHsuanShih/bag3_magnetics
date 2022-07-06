@@ -6,6 +6,8 @@ from bag.layout.util import BBox
 from bag.util.immutable import Param
 from bag.typing import PointType
 
+from pybag.enum import PathStyle
+
 from .util import compute_vertices, IndTemplate
 
 
@@ -34,7 +36,7 @@ class IndCore(IndTemplate):
             spacing='Metal spacing between inductor turns',
             radius_x='radius along X-axis',
             radius_y='radius along Y-axis',
-            term_sp='Spacing between inductor terminals',
+            term_sp='Spacing between inductor terminals, -1 for differential non-interleaved inductors',
             ind_shape='"Rectangle" or "Octagon"; "Octagon" by default',
         )
 
@@ -84,9 +86,10 @@ class IndCore(IndTemplate):
                         for lidx in range(lay_id, bot_lay_id - 1, -1)]
             n_geo = lay_id - bot_lay_id + 1
 
-        # Check feasibility based on outer turn and term_sp
-        if vertices[0][0][0] - vertices[0][-1][0] < term_sp + 4 * width:
-            raise ValueError(f'Either increase radius_x={radius_x} or decrease term_sp={term_sp}')
+        if term_sp != -1:
+            # Check feasibility based on outer turn and term_sp
+            if vertices[0][0][0] - vertices[0][-1][0] < term_sp + 4 * width:
+                raise ValueError(f'Either increase radius_x={radius_x} or decrease term_sp={term_sp}')
 
         # Check feasibility based on inner turn and bridge space
         bridge_sp = spacing + 3 * width
@@ -105,8 +108,12 @@ class IndCore(IndTemplate):
             _bridge_xl = off_x - bridge_sp // 2
             _bridge_xr = off_x + bridge_sp // 2
             if gidx == 0:
-                _start_x = off_x + (term_sp + width) // 2
-                _stop_x = off_x - (term_sp + width) // 2
+                if term_sp == -1:
+                    _start_x = vertices[0][0][0]
+                    _stop_x = vertices[0][-1][0]
+                else:
+                    _start_x = off_x + (term_sp + width) // 2
+                    _stop_x = off_x - (term_sp + width) // 2
             else:
                 _start_x, _stop_x = _bridge_xr, _bridge_xl
 
@@ -120,7 +127,7 @@ class IndCore(IndTemplate):
             # innermost top turn connects directly
             _lay_id = geo_list[-1]['lay_id']
             self._draw_bridge(turn_coords[-1]['left'][0], turn_coords[-1]['right'][-1], _lay_id, _lay_id, _lay_id,
-                              width)
+                              width, PathStyle.extend)
         if n_geo > 1:
             for gidx in range(1, n_geo, 2):
                 _bot_lay = geo_list[gidx]['lay_id']
@@ -128,11 +135,11 @@ class IndCore(IndTemplate):
 
                 _bot_l = turn_coords[gidx]['left'][0]
                 _top_r = turn_coords[gidx - 1]['right'][-1]
-                self._draw_bridge(_bot_l, _top_r, _bot_lay, _top_lay, _top_lay, width)
+                self._draw_bridge(_bot_l, _top_r, _bot_lay, _top_lay, _top_lay, width, PathStyle.extend)
 
                 _top_l = turn_coords[gidx - 1]['left'][0]
                 _bot_r = turn_coords[gidx]['right'][-1]
-                self._draw_bridge(_top_l, _bot_r, _top_lay, _bot_lay, _top_lay - 1, width)
+                self._draw_bridge(_top_l, _bot_r, _top_lay, _bot_lay, _top_lay - 1, width, PathStyle.extend)
 
         # --- bottom bridge --- #
         if n_geo > 1:
@@ -140,18 +147,18 @@ class IndCore(IndTemplate):
                 # innermost bottom turn connects directly
                 _lay_id = geo_list[-1]['lay_id']
                 self._draw_bridge(turn_coords[-1]['left'][-1], turn_coords[-1]['right'][0], _lay_id, _lay_id, _lay_id,
-                                  width)
+                                  width, PathStyle.extend)
             for gidx in range(1, n_geo - 1, 2):
                 _bot_lay = geo_list[gidx]['lay_id']
                 _top_lay = geo_list[gidx + 1]['lay_id']
 
                 _top_l = turn_coords[gidx + 1]['left'][-1]
                 _bot_r = turn_coords[gidx]['right'][0]
-                self._draw_bridge(_top_l, _bot_r, _top_lay, _bot_lay, _bot_lay, width)
+                self._draw_bridge(_top_l, _bot_r, _top_lay, _bot_lay, _bot_lay, width, PathStyle.extend)
 
                 _top_r = turn_coords[gidx + 1]['right'][0]
                 _bot_l = turn_coords[gidx]['left'][-1]
-                self._draw_bridge(_bot_l, _top_r, _bot_lay, _top_lay, _bot_lay - 1, width)
+                self._draw_bridge(_bot_l, _top_r, _bot_lay, _top_lay, _bot_lay - 1, width, PathStyle.extend)
 
         # set attributes
         self._term_coords = [turn_coords[0]['left'][-1], turn_coords[0]['right'][0]]

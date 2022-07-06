@@ -6,21 +6,22 @@ from bag.util.immutable import Param
 from bag.design.module import Module
 
 from pybag.core import Transform
+from pybag.enum import Orientation, PathStyle
 
 from .util import IndTemplate
 from .ind_core import IndCore
 from .ind_ring import IndRing
-from ...schematic.ind_wrap import bag3_magnetics__ind_wrap
+from ...schematic.ind_diff_wrap import bag3_magnetics__ind_diff_wrap
 
 
-class IndWrap(IndTemplate):
-    """A wrapper for Inductor."""
+class IndDiffWrap(IndTemplate):
+    """A wrapper for differential non-interleaved inductors."""
     def __init__(self, temp_db: TemplateDB, params: Param, **kwargs: Any) -> None:
         IndTemplate.__init__(self, temp_db, params, **kwargs)
 
     @classmethod
     def get_schematic_class(cls) -> Optional[Type[Module]]:
-        return bag3_magnetics__ind_wrap
+        return bag3_magnetics__ind_diff_wrap
 
     @classmethod
     def get_params_info(cls) -> Mapping[str, str]:
@@ -30,16 +31,13 @@ class IndWrap(IndTemplate):
             n_turns='Number of turns; 1 by default',
             width='Metal width for inductor turns',
             spacing='Metal spacing between inductor turns',
-            radius_x='radius along X-axis',
-            radius_y='radius along Y-axis',
+            radius_x='radius along X-axis in R0 orientation of single inductor, will be rotated by 90 degrees',
+            radius_y='radius along Y-axis in R0 orientation of single inductor, will be rotated by 90 degrees',
             term_sp='Spacing between inductor terminals',
-            ind_shape='"Rectangle" or "Octagon"; "Octagon" by default',
+            common_term='True to have one common terminal for differential inductors; False by default',
 
             w_ring='True to have guard ring, False by default',
             ring_specs='Specs for guard ring, Optional',
-
-            w_fill='True to have metal fill',
-            fill_specs='Specs for metal fill',
         )
 
     @classmethod
@@ -47,11 +45,9 @@ class IndWrap(IndTemplate):
         return dict(
             bot_lay_id=-1,
             n_turns=1,
-            ind_shape='Octagon',
+            common_term=False,
             w_ring=False,
             ring_specs=None,
-            w_fill=False,
-            fill_specs=None,
         )
 
     def draw_layout(self) -> None:
@@ -69,13 +65,10 @@ class IndWrap(IndTemplate):
         radius_x: int = self.params['radius_x']
         radius_y: int = self.params['radius_y']
         term_sp: int = self.params['term_sp']
-        ind_shape: str = self.params['ind_shape']
+        common_term: bool = self.params['common_term']
 
         w_ring: bool = self.params['w_ring']
         ring_specs: Optional[Mapping[str, Any]] = self.params['ring_specs']
-
-        w_fill: bool = self.params['w_fill']
-        fill_specs: Optional[Mapping[str, Any]] = self.params['fill_specs']
 
         # make inductor core
         core_params = dict(
@@ -86,8 +79,8 @@ class IndWrap(IndTemplate):
             spacing=spacing,
             radius_x=radius_x,
             radius_y=radius_y,
-            term_sp=term_sp,
-            ind_shape=ind_shape,
+            term_sp=-1,
+            ind_shape='Rectangle',
         )
         core_master: IndCore = self.new_template(IndCore, params=core_params)
 
@@ -95,56 +88,66 @@ class IndWrap(IndTemplate):
         if w_ring:
             ring_width: int = ring_specs['width']
             ring_spacing: int = ring_specs['spacing']
-            ring_sup: str = ring_specs.get('ring_sup', 'VSS')
+            gap = term_sp + 2 * width + 2 * ring_spacing + ring_width
+            if common_term:
+                gap_top = width + 2 * ring_spacing + ring_width
+                ring_sup_top = 'P2_R'
+            else:
+                gap_top = gap
+                ring_sup_top = 'P24_R'
             ring_params = dict(
                 lay_id=lay_id,
                 bot_lay_id=bot_lay_id,
                 width=ring_width,
-                gap=term_sp + 2 * width + 2 * ring_spacing + ring_width,
-                radius_x=radius_x + width // 2 + ring_spacing + ring_width // 2,
-                radius_y=radius_y + width // 2 + ring_spacing + ring_width // 2,
-                ring_sup=ring_sup,
+                gap=gap,
+                gap_top=gap_top,
+                radius_x=term_sp // 2 + 2 * radius_y + width + ring_spacing + ring_width // 2,
+                radius_y=radius_x + width // 2 + ring_spacing + ring_width // 2,
+                ring_sup='P13_R',
+                ring_sup_top=ring_sup_top,
                 ring_pin_w=term_sp + 2 * width,
             )
             dx = dy = ring_width + ring_spacing
             ring_master: IndRing = self.new_template(IndRing, params=ring_params)
             ring_inst = self.add_instance(ring_master, inst_name='XRING')
-            self.reexport(ring_inst.get_port(ring_sup))
-            ring_turn_coords = ring_master.turn_coords
+            for pin in ['P13_R', ring_sup_top]:
+                self.reexport(ring_inst.get_port(pin))
             self._actual_bbox = ring_master.actual_bbox
         else:
-            ring_width = 0
-            ring_sup = ''
-            ring_turn_coords = []
-            dx = dy = 0
-            self._actual_bbox = core_master.actual_bbox
+            raise NotImplementedError
 
-        # place inductor core
-        self.add_instance(core_master, inst_name='XCORE', xform=Transform(dx=dx, dy=dy))
+        # place 2 inductors
+        self.add_instance(core_master, inst_name='XCORE_L', xform=Transform(dx=dx + 2 * radius_y + width,
+                                                                            dy=dy,
+                                                                            mode=Orientation.R90))
+        self.add_instance(core_master, inst_name='XCORE_R', xform=Transform(dx=dx + 2 * radius_y + width + term_sp,
+                                                                            dy=dy,
+                                                                            mode=Orientation.MXR90))
 
-        # draw leads
-        term_coords = []
-        for _coord in core_master.term_coords:
-            term_coords.append((_coord[0] + dx, _coord[1] + dy))
-        res1_l = width // 2
-        res2_l = width // 4
-        term0, term1 = self._draw_leads(lay_id, width, term_coords, res1_l, res2_l)
-
-        # add pins
+        # draw leads and add pins
+        width2 = width // 2
+        res1_l = width // 4
+        res2_l = width // 2
+        res3_l = width // 4 * 3
+        res4_l = width
         lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
-        self.add_pin_primitive('P1', lp[0], term0)
-        self.add_pin_primitive('P2', lp[0], term1)
 
-        # draw fill
-        if ind_shape == 'Rectangle':
-            n_sides = 4
-        elif ind_shape == 'Octagon':
-            n_sides = 8
+        bot_term_coords = [(dx + 2 * radius_y + width2, dy + width2),
+                           (dx + 2 * radius_y + width + term_sp + width2, dy + width2)]
+        term1, term3 = self._draw_leads(lay_id, width, bot_term_coords, res1_l, res3_l)
+        self.add_pin_primitive('P1', lp[0], term1)
+        self.add_pin_primitive('P3', lp[0], term3)
+
+        top_term_coords = [(dx + 2 * radius_y + width2, dy + 2 * radius_x + width2),
+                           (dx + 2 * radius_y + width + term_sp + width2, dy + 2 * radius_x + width2)]
+        if common_term:
+            self._draw_bridge(top_term_coords[0], top_term_coords[-1], lay_id, lay_id, lay_id, width, PathStyle.extend)
+            top_term_coord = (dx + 2 * radius_y + width + term_sp // 2, dy + 2 * radius_x + width2)
+            term2 = self._draw_lead(lay_id, width, top_term_coord, res2_l, self._actual_bbox.yh, True)
         else:
-            raise ValueError(f'Unknown ind_shape={ind_shape}. Use "Rectangle" or "Octagon".')
-        if w_fill:
-            for _specs in fill_specs:
-                self._draw_fill(n_sides, _specs, core_master.turn_coords, width, dx, dy, ring_turn_coords, ring_width)
+            term2, term4 = self._draw_leads(lay_id, width, top_term_coords, res2_l, res4_l, self._actual_bbox.yh, True)
+            self.add_pin_primitive('P4', lp[0], term4)
+        self.add_pin_primitive('P2', lp[0], term2)
 
         # add inductor ID layer
         id_lp = self.grid.tech_info.tech_params['inductor'].get('id_lp', [])
@@ -158,8 +161,10 @@ class IndWrap(IndTemplate):
         self.sch_params = dict(
             res1_l=res1_l,
             res2_l=res2_l,
+            res3_l=res3_l,
+            res4_l=res4_l,
             res_w=width,
             res_layer=lay_id,
+            common_term=common_term,
             w_ring=w_ring,
-            ring_sup=ring_sup,
         )

@@ -56,7 +56,7 @@ class bag3_magnetics__ind_wrap(Module):
             res_layer='Layer of metal resistor',
             center_tap='True to have center tap',
             w_ring='True to have guard ring, False by default',
-            ring_sup='supply name fpr ring; VSS by default',
+            ring_sup='supply name for ring; VSS by default',
         )
 
     @classmethod
