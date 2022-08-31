@@ -88,9 +88,10 @@ class IndDiffWrap(IndTemplate):
         if w_ring:
             ring_width: int = ring_specs['width']
             ring_spacing: int = ring_specs['spacing']
-            gap = term_sp + 2 * width + 2 * ring_spacing + ring_width
+            ring_gap_spacing: int = ring_specs.get('gap_spacing', ring_spacing)
+            gap = term_sp + 2 * width + 2 * ring_gap_spacing + ring_width
             if common_term:
-                gap_top = width + 2 * ring_spacing + ring_width
+                gap_top = width + 2 * ring_gap_spacing + ring_width
                 ring_sup_top = 'P2_R'
             else:
                 gap_top = gap
