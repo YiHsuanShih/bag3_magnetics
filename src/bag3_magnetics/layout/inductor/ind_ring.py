@@ -47,7 +47,6 @@ class IndRing(IndTemplate):
     def draw_layout(self) -> None:
         lay_id: int = self.params['lay_id']
         lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
-        lp1 = self.grid.tech_info.get_lay_purp_list(lay_id - 1)[0]
 
         bot_lay_id: int = self.params['bot_lay_id']
         if bot_lay_id < 1:
@@ -74,8 +73,6 @@ class IndRing(IndTemplate):
         _turn_l = [(off_x - gap_top2, vertices[2][1]), vertices[2], vertices[3], (off_x - gap2, vertices[3][1])]
         self.add_path(lp, width, _turn_r, PathStyle.extend, join_style=PathStyle.extend)
         self.add_path(lp, width, _turn_l, PathStyle.extend, join_style=PathStyle.extend)
-        self.add_path(lp1, width, _turn_r, PathStyle.extend, join_style=PathStyle.extend)
-        self.add_path(lp1, width, _turn_l, PathStyle.extend, join_style=PathStyle.extend)
 
         # --- complete guard ring on (lay_id - 1) or lay_id --- #
         #     R0
