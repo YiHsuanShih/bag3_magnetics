@@ -70,23 +70,24 @@ class IndSpiral(IndSpiralTemplate):
             _bot_lp = self.grid.tech_info.get_lay_purp_list(_lay_id - 1)[0]
             _bot_dir = self.grid.get_direction(_lay_id - 1)
 
+            _xshift = (lead_width + lead_spacing) // 2
             if flip:
                 transform = Transform(dx=_bbox.xh, mode=Orientation.MY)
                 _inst = self.add_instance(_master, inst_name=f'XCORE_{_lay_id}', xform=transform)
                 if _lay_id != bot_lay_id:
                     # draw via outside spiral
                     xm, ym = _master.vertex_out
-                    xm -= (lead_width + lead_spacing) // 2
-                    via_bbox = BBox(xm - lead_width // 2, ym - width // 2, xm + lead_width // 2, ym + width // 2)
+                    xm -= _xshift
+                    via_bbox = BBox(xm - _xshift, ym - width // 2, xm + _xshift, ym + width // 2)
                     self.add_via(via_bbox, _bot_lp, _top_lp, _bot_dir, extend=False)
             else:
                 _inst = self.add_instance(_master, inst_name=f'XCORE_{_lay_id}')
 
                 # draw via inside spiral
                 xm, ym = _master.vertex_in
-                xm += (lead_width + lead_spacing) // 2
+                xm += _xshift
 
-                via_bbox = BBox(xm - lead_width // 2, ym - width // 2, xm + lead_width // 2, ym + width // 2)
+                via_bbox = BBox(xm - _xshift, ym - width // 2, xm + _xshift, ym + width // 2)
                 self.add_via(via_bbox, _bot_lp, _top_lp, _bot_dir, extend=False)
 
             if draw_lead:
