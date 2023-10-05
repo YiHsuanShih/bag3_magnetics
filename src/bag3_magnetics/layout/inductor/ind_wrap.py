@@ -29,6 +29,7 @@ class IndWrap(IndTemplate):
             bot_lay_id='Inductor bot layer ID; same as top layer by default',
             n_turns='Number of turns; 1 by default',
             width='Metal width for inductor turns',
+            lead_width='Inductour lead width',
             spacing='Metal spacing between inductor turns',
             radius_x='radius along X-axis',
             radius_y='radius along Y-axis',
@@ -52,6 +53,7 @@ class IndWrap(IndTemplate):
             ring_specs=None,
             w_fill=False,
             fill_specs=None,
+            lead_width=None,
         )
 
     def draw_layout(self) -> None:
@@ -65,6 +67,7 @@ class IndWrap(IndTemplate):
         else:
             n_turns: int = self.params['n_turns']
         width: int = self.params['width']
+        lead_width: int = self.params.get('lead_width', width)
         spacing: int = self.params['spacing']
         radius_x: int = self.params['radius_x']
         radius_y: int = self.params['radius_y']
@@ -126,9 +129,10 @@ class IndWrap(IndTemplate):
         term_coords = []
         for _coord in core_master.term_coords:
             term_coords.append((_coord[0] + dx, _coord[1] + dy))
-        res1_l = width // 2
-        res2_l = width // 4
-        term0, term1 = self._draw_leads(lay_id, width, term_coords, res1_l, res2_l)
+        lead_width = 6100
+        res1_l = lead_width // 2
+        res2_l = lead_width // 4
+        term0, term1 = self._draw_leads(lay_id, lead_width, term_coords, res1_l, res2_l)
 
         # add pins
         lp = self.grid.tech_info.get_lay_purp_list(lay_id)[0]
@@ -158,7 +162,7 @@ class IndWrap(IndTemplate):
         self.sch_params = dict(
             res1_l=res1_l,
             res2_l=res2_l,
-            res_w=width,
+            res_w=lead_width,
             res_layer=lay_id,
             w_ring=w_ring,
             ring_sup=ring_sup,
